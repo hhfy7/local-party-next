@@ -7,8 +7,7 @@
 当你在此目录下启动时，请务必参考以下文档以维持上下文一致性：
 
 1.  **`PROJECT_DESIGN.md`**: 核心设计方案。包含了详细的业务逻辑、同步机制、iPad 兼容性处理和安全设计。这是**开发的第一参考指南**。
-2.  **`data/` 文件夹**: 存放了原始的开源代码。
-    *   **为什么参考？**: 原项目的 `render.js` 和 `app.js` 包含了成熟的视频同步状态机和时间格式化逻辑。重构时应参考其业务流程，但使用新的技术栈实现。
+2.  **`DEVELOPMENT_PLAN.md`**: 实时开发进度表。
 3.  **核心技术栈**:
     *   **Frontend**: React 19 (使用最新 Hooks), Zustand (状态管理), Tailwind CSS (响应式布局), React Router v7.
     *   **Backend**: Node.js, Express, Socket.io v4.
@@ -19,28 +18,59 @@
 *   `packages/client`: 前端单页应用 (Vite)。
 *   `packages/server`: 后端信令服务器。
 *   `packages/shared`: 存放前后端公用的 TypeScript 类型定义 (如 `SocketEvents`)。
-*   `data/`: 原始代码仓库 (仅供参考)。
 
-## 💡 开发关键点记录
+## 🧪 验证与清理规范 (Verification & Cleanup Policy)
 
-*   **房间销毁机制**: 房间信息仅存储在服务端内存中。当房间内最后一个用户断开连接时，房间及其聊天记录必须立即销毁。
-*   **iPad 兼容性**: 
-    *   必须使用 `playsinline` 属性防止强制全屏。
-    *   iPad 音量无法通过 JS 控制，UI 应引导用户使用物理按键。
-*   **同步逻辑**: 区分“用户操作”和“远端同步”，防止 Socket 消息死循环 (Sync Loop)。
-*   **大文件处理**: 使用 `URL.createObjectURL`，严禁将大视频文件读入内存。
+为了确保代码质量，Gemini 在完成每一步开发后必须遵循以下流程：
 
-## 🚀 快速启动
+1.  **代码检查**: 运行 `pnpm run lint` 确保没有语法和规范错误。
+2.  **启动验证**: 
+    *   **后端**: 运行启动命令，捕捉到 `Server 正在运行` 日志为准。
+    *   **前端**: 运行启动命令，捕捉到 `Vite` 启动成功的日志为准。
+3.  **必须清理**: 验证通过后，**必须立即杀死**该进程（使用 `kill` 或相关工具），严禁让开发服务器在后台无意义运行。
+4.  **记录日志**: 在对话中展示验证成功的日志片段。
 
-1.  **安装依赖**: `pnpm install` (在根目录执行)。
-2.  **启动开发环境**: `pnpm dev` (同时启动前后端)。
-3.  **iPad 测试**: 确保设备在同一 Wi-Fi，访问 `http://<MAC_IP>:5173`。
+## 🛠 开发与启动命令 (Cheat Sheet)
 
-## 🛠 开发流程建议
+### 1. 全局启动 (推荐)
+一次性启动前端和后端，适合联调。
+```bash
+# 在根目录执行
+pnpm dev
+```
+*   **前端**: `http://localhost:5173`
+*   **后端**: `http://localhost:4000`
 
-1.  先在 `packages/shared/src/types.ts` 定义 Socket 事件和数据结构。
-2.  在 `packages/server` 实现基础的房间逻辑。
-3.  在 `packages/client` 实现视频播放器组件和 Zustand 状态同步。
+### 2. 单独启动
+如果你只想调试某一部分。
+
+*   **只启动后端**:
+    ```bash
+    pnpm --filter @local-party/server run dev
+    ```
+    *   **测试方法**: 启动后，终端应显示 `Server 正在运行在 http://localhost:4000`。浏览器访问该地址显示 `Cannot GET /` 是正常的，因为它是 API 服务器。
+
+*   **只启动前端**:
+    ```bash
+    pnpm --filter @local-party/client run dev
+    ```
+
+### 3. 代码检查 (Lint)
+在提交代码前务必运行。
+```bash
+pnpm run lint
+```
+*   **预期结果**: 应该显示 "Done" 或没有错误输出。如果有 Error，必须修复。
+
+## 🧪 阶段性测试指南
+
+*   **Phase 1 (基础架构)**:
+    1.  运行 `pnpm --filter @local-party/server run dev`。
+    2.  观察终端无报错，显示 `Server 正在运行...`。
+    3.  (可选) 使用 Postman 或 Socket.io 调试工具连接 `ws://localhost:4000`。
+
+*   **Phase 2 (房间逻辑)**:
+    1.  TBD (待开发完成后补充)
 
 ---
-*此文档由 Gemini Agent 生成，用于确保跨会话的上下文延续。*
+*此文档由 Gemini Agent 更新，用于确保跨会话的上下文延续。*
