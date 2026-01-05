@@ -5,10 +5,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -16,6 +13,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true // Enable network access for iPad testing
-  }
+    host: true, // Enable network access for iPad testing
+  },
 })

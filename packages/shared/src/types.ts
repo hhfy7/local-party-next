@@ -2,28 +2,30 @@ export interface User {
   id: string
   username: string
   roomId: string
+  videoDuration?: number // 视频时长 (秒)
+  fileName?: string // 文件名
 }
 
 export interface ChatMessage {
   id: string
-  type: 'text' | 'system' // 普通消息 或 系统操作日志
+  type: 'text' | 'system'
   userId: string
   username: string
-  content: string // "你好" 或 "快进了 5秒"
+  content: string
   timestamp: number
 }
 
 // 视频元数据 (用于校验)
 export interface VideoMeta {
-  duration: number // 秒
-  fileSize: number // 字节
+  duration: number
+  fileSize: number
 }
 
 // 核心同步指令
 export interface SyncAction {
   type: 'play' | 'pause' | 'seek'
-  timestamp: number // 当前视频时间戳
-  reqId?: string // 用于去重或调试
+  timestamp: number
+  reqId?: string
 }
 
 // Socket 服务端事件 (Server -> Client)
@@ -32,12 +34,14 @@ export interface ServerToClientEvents {
     roomId: string
     history: ChatMessage[]
     users: User[]
+    currentStatus?: SyncAction
   }) => void
   user_joined: (user: User) => void
   user_left: (userId: string) => void
+  user_updated: (user: User) => void // 新增
   receive_message: (msg: ChatMessage) => void
-  receive_sync: (action: SyncAction, user: string) => void // user是操作者的名字
-  video_warning: (msg: string) => void // 视频不匹配警告
+  receive_sync: (action: SyncAction, user: string) => void
+  video_warning: (msg: string) => void
   error: (msg: string) => void
 }
 
@@ -50,7 +54,11 @@ export interface ClientToServerEvents {
       password?: string
       videoMeta: VideoMeta
     },
-    callback?: (res: { success: boolean; roomId?: string; error?: string }) => void
+    callback?: (res: {
+      success: boolean
+      roomId?: string
+      error?: string
+    }) => void,
   ) => void
   create_room: (
     data: {
@@ -59,20 +67,24 @@ export interface ClientToServerEvents {
       password?: string
       videoMeta: VideoMeta
     },
-    callback?: (res: { success: boolean; roomId?: string; error?: string }) => void
+    callback?: (res: {
+      success: boolean
+      roomId?: string
+      error?: string
+    }) => void,
   ) => void
   send_message: (content: string) => void
   send_sync: (action: SyncAction) => void
+  update_status: (data: { duration: number; fileName: string }) => void // 新增
 }
 
-// 房间状态（后端内存使用）
 export interface RoomState {
   id: string
   name: string
-  password?: string // 可选密码
-  hostId: string // 房主 Socket ID
+  password?: string
+  hostId: string
   users: User[]
-  videoMeta: VideoMeta // 以房主的视频为准
+  videoMeta: VideoMeta
   messages: ChatMessage[]
-  lastAction?: SyncAction // 记录最后一次同步状态，方便新加入者同步
+  lastAction?: SyncAction
 }

@@ -1,226 +1,390 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useAppStore } from '../stores/useAppStore'
-import { VideoPlayer } from '../components/VideoPlayer'
-import { ChatPanel } from '../components/ChatPanel'
-import { SyncAction } from '@local-party/shared/src/types'
+import { VideoPlayer } from '@/components/VideoPlayer'
+import { ChatPanel } from '@/components/ChatPanel'
+import { saveNickname } from '@/utils/storage'
+import toast from 'react-hot-toast'
 
-// 直接访问时的“补票”模态框
-const JoinModal = ({ roomId, onJoin }: { roomId: string, onJoin: (name: string) => void }) => {
-  const [name, setName] = useState('')
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl animate-fade-in-up">
-        <h2 className="mb-6 text-2xl font-bold text-gray-900 text-center">加入房间: {roomId}</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-gray-700">你的昵称</label>
-            <input
-              type="text"
-              className="w-full rounded-xl border-0 bg-gray-50 px-4 py-3 text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-emerald-500"
-              placeholder="请输入昵称"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <button
-            onClick={() => name && onJoin(name)}
-            disabled={!name}
-            className="w-full rounded-xl bg-emerald-600 py-3 font-bold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-700 disabled:opacity-50"
-          >
-            加入聚会
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+// Hooks
+import { useRoomLogic } from '../hooks/useRoomLogic'
+import { useFileHandler } from '../hooks/useFileHandler'
+import { useVideoSync } from '../hooks/useVideoSync'
+
+// Components
+import { JoinModal } from '@/components/JoinModal'
+import { ErrorScreen, LoadingScreen } from '@/components/StatusScreens'
+import { UserItem } from '@/components/UserItem'
 
 export const RoomPage = () => {
   const { roomId } = useParams()
-  const navigate = useNavigate()
-  const { users, currentUser, socket, connect } = useAppStore()
-  
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
-  
-  // 引用
+  const { users, currentUser, socket, lastAction } = useAppStore()
+
+  // UI State
+  const [isSidebarOpen, setSidebarOpen] = useState(true)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [tempName, setTempName] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
-  const isRemoteAction = useRef(false)
 
-  // 1. 确保 Socket 连接
-  useEffect(() => {
-    connect()
-  }, [connect])
+  // 1. 房间逻辑
+  const { isAutoJoining, errorMsg, handleJoin, navigate } = useRoomLogic(roomId)
 
-  // 2. 处理直接访问链接的情况
-  const handleLateJoin = (username: string) => {
-    if (!socket || !roomId) return
-    
-    socket.emit('join_room', {
-      username,
-      roomId,
-      password: '',
-      videoMeta: { duration: 0, fileSize: 0 }
-    }, (res: { success: boolean; error?: string }) => {
-       if (!res.success) {
-         alert('加入失败: ' + (res.error || '未知错误'))
-         // 如果房间不存在，跳回首页
-         if (res.error === '房间不存在') {
-           navigate('/')
-         }
-       }
-    })
+  // 2. 文件逻辑
+  const {
+    videoUrl,
+    cachedFileHandle,
+    pickFile,
+    restoreCachedVideo,
+    handleInputSelect,
+  } = useFileHandler(roomId)
+
+  // 3. 同步逻辑
+  const { handleVideoLoaded } = useVideoSync(
+    socket,
+    videoRef,
+    lastAction,
+    videoUrl,
+  )
+
+  // --- 状态上报逻辑 (New) ---
+  const handleDurationChange = (duration: number) => {
+    if (!socket || !duration) return
+
+    // 获取文件名 (优先用缓存句柄的名字，如果没有则尝试从 input 获取，或者给个默认值)
+    // 注意：如果是 input 选择的，我们在 pickFile 里没存 fileName 到 state，这里简化处理
+    const fileName = cachedFileHandle?.name || 'Local File'
+
+    console.log('[Status Report]', { duration, fileName })
+    socket.emit('update_status', { duration, fileName })
   }
 
-  // 3. 视频同步逻辑 (保持不变)
-  useEffect(() => {
-    if (!socket) return
+  // --- Handlers ---
+  const handleUpdateName = () => {
+    const trimmed = tempName.trim()
+    if (!trimmed) return setIsEditingName(false)
+    if (trimmed === currentUser?.username) return setIsEditingName(false)
 
-    const handleReceiveSync = (action: SyncAction) => {
-      const video = videoRef.current
-      if (!video) return
-
-      // 系统日志会在 ChatPanel 里通过 receive_message (system type) 显示
-      // 这里只负责操作视频
-
-      isRemoteAction.current = true
-      
-      if (action.type === 'play') {
-        // 计算时差补偿（可选优化）
-        video.currentTime = action.timestamp
-        video.play().catch(() => {})
-      } else if (action.type === 'pause') {
-        video.pause()
-        video.currentTime = action.timestamp
-      } else if (action.type === 'seek') {
-        video.currentTime = action.timestamp
-      }
-
-      setTimeout(() => { isRemoteAction.current = false }, 300)
-    }
-
-    socket.on('receive_sync', handleReceiveSync)
-    return () => { socket.off('receive_sync', handleReceiveSync) }
-  }, [socket])
-
-  // 4. 发送同步指令
-  const sendSync = useCallback((type: SyncAction['type']) => {
-    const video = videoRef.current
-    if (!video || !socket || isRemoteAction.current) return
-
-    const action: SyncAction = { type, timestamp: video.currentTime }
-    socket.emit('send_sync', action)
-  }, [socket])
-
-  // 5. 文件选择
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (videoUrl) URL.revokeObjectURL(videoUrl)
-    setVideoUrl(URL.createObjectURL(file))
+    saveNickname(trimmed)
+    setIsEditingName(false)
+    toast.success('昵称已更新 (刷新后完全同步)')
   }
-
-  // 绑定事件
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-
-    const onPlay = () => sendSync('play')
-    const onPause = () => sendSync('pause')
-    const onSeeked = () => sendSync('seek')
-
-    video.addEventListener('play', onPlay)
-    video.addEventListener('pause', onPause)
-    video.addEventListener('seeked', onSeeked)
-
-    return () => {
-      video.removeEventListener('play', onPlay)
-      video.removeEventListener('pause', onPause)
-      video.removeEventListener('seeked', onSeeked)
-    }
-  }, [videoUrl, sendSync])
 
   // --- Render ---
 
-  // 如果未加入（没有 currentUser），显示模态框
-  if (!currentUser && roomId) {
-    return <JoinModal roomId={roomId} onJoin={handleLateJoin} />
-  }
+  if (errorMsg)
+    return <ErrorScreen message={errorMsg} onBack={() => navigate('/')} />
+  if (isAutoJoining) return <LoadingScreen />
+  if (!currentUser && roomId)
+    return <JoinModal roomId={roomId} onJoin={name => handleJoin(name)} />
+
+  const bgColor = videoUrl ? 'bg-gray-900' : 'bg-gray-50'
+  const leftPanelBg = videoUrl ? 'bg-black' : 'bg-transparent'
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden md:flex-row">
-      {/* 顶部/左侧: 视频区 */}
-      <div className="flex-1 relative flex flex-col bg-black">
-        {/* Header (Mobile Only) */}
-        <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none md:hidden">
-           <h1 className="text-white font-bold text-shadow">Room: {roomId}</h1>
-        </div>
+    <div
+      className={`relative flex h-screen flex-col overflow-hidden transition-colors duration-700 ease-in-out md:flex-row ${bgColor}`}
+    >
+      {/* --- 左侧视频/操作区 --- */}
+      <div
+        className={`relative flex flex-1 flex-col overflow-hidden transition-colors duration-700 ${leftPanelBg}`}
+      >
+        {/* ... (Sidebar Toggle Button - Same as before) ... */}
+        <button
+          onClick={() => setSidebarOpen(!isSidebarOpen)}
+          className={`absolute top-6 right-6 z-30 rounded-full border border-white/10 p-3 shadow-lg backdrop-blur-md transition-all duration-300 ${
+            videoUrl
+              ? 'bg-black/20 text-white/70 hover:bg-black/40 hover:text-white'
+              : 'bg-white/60 text-gray-500 ring-1 ring-gray-200/50 hover:bg-white hover:text-indigo-600'
+          } ${isSidebarOpen ? 'rotate-180' : ''}`}
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 5l7 7-7 7M5 5l7 7-7 7"
+            />
+          </svg>
+        </button>
 
-        {/* Video Container */}
-        <div className="flex-1 flex items-center justify-center relative">
+        <div className="relative flex h-full w-full flex-1 items-center justify-center p-4 md:p-8">
           {!videoUrl ? (
-            <div className="text-center p-8">
-              <div className="mb-6 mx-auto h-20 w-20 bg-gray-800 rounded-full flex items-center justify-center">
-                 <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" /></svg>
+            <div className="relative w-full max-w-2xl">
+              {/* ... (Empty State UI - Same as before) ... */}
+              <div className="animate-pulse-slow absolute top-1/2 left-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-200/30 blur-3xl"></div>
+
+              <div className="animate-fade-in-up text-center">
+                <div className="rounded-[3rem] border border-white bg-white/80 p-12 shadow-2xl ring-1 ring-white/50 backdrop-blur-xl">
+                  <div className="animate-float mx-auto mb-10 flex h-28 w-28 items-center justify-center rounded-[2rem] bg-gradient-to-br from-indigo-50 to-white shadow-lg ring-4 shadow-indigo-100 ring-indigo-50">
+                    <svg
+                      className="ml-1 h-12 w-12 text-indigo-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+
+                  {cachedFileHandle ? (
+                    <div>
+                      <h2 className="mb-3 text-3xl font-black tracking-tight text-gray-900">
+                        欢迎回来
+                      </h2>
+                      <p className="mb-10 text-lg text-gray-500">
+                        上次观看{' '}
+                        <span className="mx-1 rounded-full bg-indigo-50 px-3 py-1 font-bold text-indigo-600">
+                          {cachedFileHandle.name}
+                        </span>
+                      </p>
+                      <div className="flex flex-col justify-center gap-4 sm:flex-row">
+                        <button
+                          onClick={restoreCachedVideo}
+                          className="rounded-2xl bg-indigo-600 px-10 py-4 text-lg font-bold text-white shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 hover:bg-indigo-700 hover:shadow-indigo-300 active:translate-y-0"
+                        >
+                          继续播放
+                        </button>
+                        <button
+                          onClick={pickFile}
+                          className="rounded-2xl border border-gray-200 bg-white px-10 py-4 text-lg font-bold text-gray-600 transition-all hover:border-gray-300 hover:bg-gray-50"
+                        >
+                          更换视频
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="mb-4 text-3xl font-black tracking-tight text-gray-900">
+                        准备就绪
+                      </h2>
+                      <p className="mx-auto mb-10 max-w-md text-lg leading-relaxed text-gray-500">
+                        选择本地视频文件，即刻开启
+                        <br />
+                        <span className="font-medium text-indigo-500">
+                          无损画质
+                        </span>{' '}
+                        的异地同步观影体验
+                      </p>
+                      <button
+                        onClick={pickFile}
+                        className="group relative inline-flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gray-900 px-12 py-5 text-lg font-bold text-white shadow-2xl transition-all hover:-translate-y-1 hover:bg-gray-800 hover:shadow-gray-400/50 active:translate-y-0"
+                      >
+                        <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></span>
+                        <span className="relative flex items-center gap-3">
+                          <svg
+                            className="h-6 w-6"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 4v16m8-8H4"
+                            />
+                          </svg>
+                          选择视频文件
+                        </span>
+                      </button>
+                    </>
+                  )}
+                  <input
+                    id="hidden-file-input"
+                    type="file"
+                    accept="video/*"
+                    onChange={handleInputSelect}
+                    className="hidden"
+                  />
+                </div>
+
+                <p className="mt-8 text-xs font-medium tracking-wide text-gray-400 uppercase opacity-60">
+                  Secure Local Playback • No Upload
+                </p>
               </div>
-              <h2 className="text-white text-xl font-bold mb-2">选择本地视频</h2>
-              <p className="text-gray-400 mb-6 max-w-sm">
-                每个参与者都需要选择自己电脑上的同一个视频文件。
-              </p>
-              <label className="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full font-bold transition">
-                浏览文件
-                <input type="file" accept="video/*" onChange={handleFileSelect} className="hidden" />
-              </label>
             </div>
           ) : (
-             <VideoPlayer 
-               ref={videoRef} 
-               src={videoUrl} 
-               className="w-full h-full"
-             />
+            <VideoPlayer
+              ref={videoRef}
+              src={videoUrl}
+              className="animate-fade-in h-full w-full overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10 outline-none"
+              onLoadedMetadata={handleVideoLoaded}
+              onDurationChange={handleDurationChange} // 绑定时长上报
+            />
           )}
         </div>
       </div>
 
-      {/* 右侧/底部: 聊天与用户列表 */}
-      <div className="h-[40vh] md:h-full md:w-96 flex flex-col bg-white shadow-xl z-10 relative">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
-          <div>
-            <h2 className="font-bold text-gray-900">Room {roomId}</h2>
-            <div className="flex items-center gap-2 mt-1">
-               <span className="flex h-2 w-2 relative">
-                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-               </span>
-               <span className="text-xs text-gray-500">{users.length} 人在线</span>
-            </div>
-          </div>
-          <button 
-             onClick={() => {
+      {/* --- 右侧侧边栏 --- */}
+      <div
+        className={`cubic-bezier(0.4, 0, 0.2, 1) relative z-20 flex flex-col bg-white shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] transition-all duration-500 ${isSidebarOpen ? 'w-full translate-x-0 opacity-100 md:w-96' : 'w-0 translate-x-20 overflow-hidden opacity-0'} ${isSidebarOpen ? 'h-[40vh] md:h-full' : 'h-0 md:h-full'} `}
+      >
+        {/* Header - 保持不变 */}
+        <div className="sticky top-0 z-10 shrink-0 border-b border-gray-100 bg-white/50 p-6 backdrop-blur-xl">
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-xl font-black tracking-tight text-gray-900">
+              Room{' '}
+              <span className="ml-1 rounded-lg bg-indigo-50 px-2 py-0.5 font-mono text-lg text-indigo-600">
+                {roomId}
+              </span>
+            </h2>
+            <button
+              onClick={() => {
                 navigator.clipboard.writeText(window.location.href)
-                alert('链接已复制！')
-             }}
-             className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition"
-             title="复制链接"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-          </button>
+                toast.success('链接已复制', { icon: '🔗' })
+              }}
+              className="rounded-xl p-2.5 text-gray-400 shadow-sm ring-1 ring-gray-100 transition-all hover:bg-indigo-50 hover:text-indigo-600 active:scale-95"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* 昵称编辑区 - 保持不变 */}
+          {isEditingName ? (
+            <div className="animate-fade-in flex items-center gap-2 rounded-2xl border border-indigo-100 bg-white p-1.5 shadow-lg ring-2 shadow-indigo-50 ring-indigo-50">
+              <input
+                autoFocus
+                maxLength={12}
+                className="flex-1 border-0 bg-transparent px-3 py-2 text-sm font-bold text-gray-900 outline-none placeholder:font-normal focus:ring-0"
+                value={tempName}
+                onChange={e => setTempName(e.target.value)}
+                placeholder="新昵称"
+                onKeyDown={e => e.key === 'Enter' && handleUpdateName()}
+              />
+              <button
+                onClick={handleUpdateName}
+                className="rounded-xl bg-indigo-600 p-2 text-white shadow-md transition-all hover:scale-105 hover:bg-indigo-700 active:scale-95"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={() => setIsEditingName(false)}
+                className="rounded-xl p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className="group flex cursor-default items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 p-3 transition-all hover:border-indigo-100 hover:bg-white hover:shadow-md hover:shadow-indigo-50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] bg-gradient-to-br from-indigo-500 to-purple-600 font-black text-white shadow-lg shadow-indigo-200 transition-transform group-hover:scale-105">
+                  {currentUser?.username?.[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <div className="mb-0.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+                    Your Identity
+                  </div>
+                  <div className="text-base font-black tracking-tight text-gray-900">
+                    {currentUser?.username}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setTempName(currentUser?.username || '')
+                  setIsEditingName(true)
+                }}
+                className="rounded-xl border border-indigo-100 bg-white px-4 py-2 text-xs font-bold text-indigo-600 opacity-0 shadow-sm transition-all group-hover:opacity-100 hover:border-indigo-200 hover:shadow-md active:scale-95"
+              >
+                修改
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* User List (Collapsed by default or small) */}
-        <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex gap-2 overflow-x-auto">
+        {/* 用户列表 (New Status Logic) */}
+        {/* 用户列表 */}
+        <div className="px-6 py-4 bg-white border-b border-gray-100 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
            {users.map(u => (
-             <div key={u.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-gray-200 shadow-sm shrink-0">
-               <div className="h-2 w-2 rounded-full bg-indigo-500"></div>
-               <span className="text-xs font-medium text-gray-700">{u.username}</span>
-             </div>
+             <UserItem 
+               key={u.id} 
+               user={u} 
+               isHost={u.id === (users[0]?.id || '')} // 简单判断第一个为房主
+               isMe={u.id === currentUser?.id}
+               hostDuration={users[0]?.videoDuration}
+             />
            ))}
         </div>
 
-        {/* Chat */}
-        <ChatPanel className="flex-1 min-h-0" />
+        <ChatPanel className="min-h-0 flex-1" />
+
+        {videoUrl && (
+          <div className="flex shrink-0 justify-center border-t border-gray-100 bg-white p-4 pb-6">
+            <button
+              onClick={pickFile}
+              className="group flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-bold text-gray-500 transition-all hover:bg-indigo-50 hover:text-indigo-600"
+            >
+              <span className="rounded-lg bg-gray-100 p-1.5 transition-colors group-hover:bg-indigo-200 group-hover:text-indigo-700">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </span>
+              更换视频源
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,76 +1,93 @@
-# Local Party Next - Gemini Context & Project Guide
+# Local Party Next - 项目指南与架构文档
 
-**Local Party Next** 是对原 `local-party` 项目的现代化重构。它是一个支持 macOS (Host) 与 iPad (Guest) 异地同步观看本地视频的 Web 应用。
+**Local Party Next** 是对原 `local-party` 的现代化重构。这是一个支持 **异地同屏观看本地视频** 的全栈 Web 应用，强调**零上传**（视频不经过服务器）和**极致隐私**。
 
-## 🤖 给 Gemini Agent 的重要上下文 (必读)
+## 🤖 给 Gemini Agent 的核心上下文
 
-当你在此目录下启动时，请务必参考以下文档以维持上下文一致性：
-
-1.  **`PROJECT_DESIGN.md`**: 核心设计方案。包含了详细的业务逻辑、同步机制、iPad 兼容性处理和安全设计。这是**开发的第一参考指南**。
-2.  **`DEVELOPMENT_PLAN.md`**: 实时开发进度表。
-3.  **核心技术栈**:
-    *   **Frontend**: React 19 (使用最新 Hooks), Zustand (状态管理), Tailwind CSS (响应式布局), React Router v7.
-    *   **Backend**: Node.js, Express, Socket.io v4.
-    *   **Package Manager**: **必须使用 pnpm** (Monorepo 模式)。
-
-## 📂 项目结构 (Monorepo)
-
-*   `packages/client`: 前端单页应用 (Vite)。
-*   `packages/server`: 后端信令服务器。
-*   `packages/shared`: 存放前后端公用的 TypeScript 类型定义 (如 `SocketEvents`)。
-
-## 🧪 验证与清理规范 (Verification & Cleanup Policy)
-
-为了确保代码质量，Gemini 在完成每一步开发后必须遵循以下流程：
-
-1.  **代码检查**: 运行 `pnpm run lint` 确保没有语法和规范错误。
-2.  **启动验证**: 
-    *   **后端**: 运行启动命令，捕捉到 `Server 正在运行` 日志为准。
-    *   **前端**: 运行启动命令，捕捉到 `Vite` 启动成功的日志为准。
-3.  **必须清理**: 验证通过后，**必须立即杀死**该进程（使用 `kill` 或相关工具），严禁让开发服务器在后台无意义运行。
-4.  **记录日志**: 在对话中展示验证成功的日志片段。
-
-## 🛠 开发与启动命令 (Cheat Sheet)
-
-### 1. 全局启动 (推荐)
-一次性启动前端和后端，适合联调。
-```bash
-# 在根目录执行
-pnpm dev
-```
-*   **前端**: `http://localhost:5173`
-*   **后端**: `http://localhost:4000`
-
-### 2. 单独启动
-如果你只想调试某一部分。
-
-*   **只启动后端**:
-    ```bash
-    pnpm --filter @local-party/server run dev
-    ```
-    *   **测试方法**: 启动后，终端应显示 `Server 正在运行在 http://localhost:4000`。浏览器访问该地址显示 `Cannot GET /` 是正常的，因为它是 API 服务器。
-
-*   **只启动前端**:
-    ```bash
-    pnpm --filter @local-party/client run dev
-    ```
-
-### 3. 代码检查 (Lint)
-在提交代码前务必运行。
-```bash
-pnpm run lint
-```
-*   **预期结果**: 应该显示 "Done" 或没有错误输出。如果有 Error，必须修复。
-
-## 🧪 阶段性测试指南
-
-*   **Phase 1 (基础架构)**:
-    1.  运行 `pnpm --filter @local-party/server run dev`。
-    2.  观察终端无报错，显示 `Server 正在运行...`。
-    3.  (可选) 使用 Postman 或 Socket.io 调试工具连接 `ws://localhost:4000`。
-
-*   **Phase 2 (房间逻辑)**:
-    1.  TBD (待开发完成后补充)
+当你在此目录下启动时，请务必参考以下文档：
+1.  **`docs/CRITICAL_BUSINESS_RULES.md`**: 🔴 **必读**。包含了防死循环锁、iPad 兼容性、视频校验等核心“不可删除”的逻辑。
+2.  **`docs/DATA_LIFECYCLE.md`**: 数据流转、内存回收与客户端缓存策略。
+3.  **`docs/COMMUNICATION_PROTOCOL.md`**: 前后端 Socket 通信协议详解。
 
 ---
-*此文档由 Gemini Agent 更新，用于确保跨会话的上下文延续。*
+
+## 🛠 常用命令 (Cheat Sheet)
+
+| 动作 | 命令 | 说明 |
+| :--- | :--- | :--- |
+| **启动开发** | `pnpm dev` | 同时启动前端 (:5173) 和后端 (:4000) |
+| **代码格式化** | `pnpm run format` | **提交前必跑**。使用 Prettier 美化全项目代码。 |
+| **代码检查** | `pnpm run lint` | 检查 TS 类型错误和 ESLint 规范。 |
+
+---
+
+## 🏗 前端架构 (Architecture)
+
+前端采用了 **逻辑与视图分离 (Logic-View Separation)** 的架构模式。
+
+### 1. 数据流向图
+
+```mermaid
+graph TD
+    User(User Interaction) --> Pages(Pages / Layout)
+    Pages --> Hooks(Custom Hooks / Logic)
+    
+    subgraph "Logic Layer (Hooks)"
+        RoomLogic[useRoomLogic]
+        FileHandler[useFileHandler]
+        VideoSync[useVideoSync]
+    end
+    
+    Hooks --> Store(Zustand Store)
+    Hooks --> Socket(Socket.io Client)
+    Hooks --> Storage(IndexedDB / LocalStorage)
+    
+    Store --> Components(UI Components)
+    Socket --> Components
+```
+
+### 2. 核心模块与文件职责
+
+#### **🅰️ 页面层 (Pages)**
+*   **`src/pages/RoomPage.tsx`**: **控制器 (Controller)**。
+    *   不包含底层逻辑。
+    *   负责组装 Hooks，管理布局状态（如侧边栏折叠），根据 `videoUrl` 切换深浅主题。
+
+#### **🅱️ 逻辑层 (Hooks)**
+*   **`src/hooks/useRoomLogic.ts`**: **房间业务**。
+    *   处理登录、加入房间、自动重连、错误跳转。
+*   **`src/hooks/useFileHandler.ts`**: **文件系统**。
+    *   封装 `showOpenFilePicker` 和降级 input。
+    *   管理 `IndexedDB` 读写，实现“刷新即恢复”和权限再次请求。
+*   **`src/hooks/useVideoSync.ts`**: **同步引擎**。
+    *   处理 `send_sync` / `receive_sync`。
+    *   包含 **防抖 (Debounce)** 和 **死循环锁 (isRemoteAction)** 核心算法。
+
+#### **©️ 组件层 (Components)**
+*   **`src/components/VideoPlayer.tsx`**: 
+    *   封装原生 `<video>`。包含 **透明点击遮罩 (iPad fix)** 和 **点击反馈动画 (Ping)**。
+*   **`src/components/ChatPanel.tsx`**: 
+    *   聊天渲染。自动将系统消息格式化为“胶囊”样式。
+*   **`src/components/UserItem.tsx`**: 
+    *   用户列表项。包含 **视频一致性校验 (红绿灯)** 和 **Portal Tooltip**。
+*   **`src/components/JoinModal.tsx`**: 补票弹窗 (Pop-in 动效)。
+*   **`src/components/StatusScreens.tsx`**: 错误页与 Loading 页。
+
+#### **D. 状态与工具 (Store & Utils)**
+*   **`src/stores/useAppStore.ts`**: 全局状态 (User, Users, Socket)。
+*   **`src/utils/storage.ts`**: 客户端持久化工具 (基于 `idb-keyval`)。
+
+---
+
+## 🎨 UI/UX 设计规范 (Design System)
+
+*   **沉浸式主题**: 
+    *   未播放时：**浅色模式** (Gray-50)，通透干净。
+    *   播放时：左侧平滑过渡到 **深色模式** (Gray-900)，专注观影。
+*   **微交互**:
+    *   **Toast**: 全局使用 `react-hot-toast`。
+    *   **动画**: 使用 `cubic-bezier` 实现非线性弹跳效果。
+
+---
+
+*文档更新时间: 2026-01-05*

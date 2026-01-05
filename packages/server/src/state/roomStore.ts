@@ -5,7 +5,7 @@ const rooms = new Map<string, RoomState>()
 
 export const roomStore = {
   getRoom: (roomId: string) => rooms.get(roomId),
-  
+
   createRoom: (room: RoomState) => {
     rooms.set(room.id, room)
     return room
@@ -16,5 +16,5 @@ export const roomStore = {
   },
 
   // 调试用
-  getAllRooms: () => Object.fromEntries(rooms)
+  getAllRooms: () => Object.fromEntries(rooms),
 }
