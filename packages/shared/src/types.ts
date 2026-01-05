@@ -43,18 +43,24 @@ export interface ServerToClientEvents {
 
 // Socket 客户端事件 (Client -> Server)
 export interface ClientToServerEvents {
-  join_room: (data: {
-    roomId: string
-    username: string
-    password?: string
-    videoMeta: VideoMeta
-  }) => void
-  create_room: (data: {
-    roomName: string
-    username: string
-    password?: string
-    videoMeta: VideoMeta
-  }) => void
+  join_room: (
+    data: {
+      roomId: string
+      username: string
+      password?: string
+      videoMeta: VideoMeta
+    },
+    callback?: (res: { success: boolean; roomId?: string; error?: string }) => void
+  ) => void
+  create_room: (
+    data: {
+      roomName: string
+      username: string
+      password?: string
+      videoMeta: VideoMeta
+    },
+    callback?: (res: { success: boolean; roomId?: string; error?: string }) => void
+  ) => void
   send_message: (content: string) => void
   send_sync: (action: SyncAction) => void
 }

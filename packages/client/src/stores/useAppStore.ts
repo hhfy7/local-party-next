@@ -5,7 +5,6 @@ import {
   ServerToClientEvents,
   User,
   ChatMessage,
-  SyncAction,
 } from '@local-party/shared/src/types'
 
 const SOCKET_URL = 'http://localhost:4000'
@@ -52,10 +51,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // 监听通用事件
     socket.on('room_joined', (data) => {
+      const me = data.users.find(u => u.id === socket.id) || null
       set({ 
         roomId: data.roomId, 
         users: data.users, 
-        messages: data.history 
+        messages: data.history,
+        currentUser: me
       })
     })
 
@@ -65,6 +66,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     socket.on('user_left', (userId) => {
       set((state) => ({ users: state.users.filter((u) => u.id !== userId) }))
+    })
+
+    socket.on('receive_message', (msg) => {
+      set((state) => ({ messages: [...state.messages, msg] }))
     })
 
     set({ socket })

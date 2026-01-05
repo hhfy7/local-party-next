@@ -23,7 +23,7 @@ const IconBack = () => (
 
 export const LandingPage = () => {
   const navigate = useNavigate()
-  const { connect, socket, connected, roomId } = useAppStore()
+  const { connect, socket, connected } = useAppStore()
   
   const [view, setView] = useState<'menu' | 'create' | 'join'>('menu')
   
@@ -37,12 +37,6 @@ export const LandingPage = () => {
     connect()
   }, [connect])
 
-  useEffect(() => {
-    if (roomId) {
-      navigate(`/room/${roomId}`)
-    }
-  }, [roomId, navigate])
-
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!socket || !username) return alert('请输入昵称')
@@ -55,6 +49,12 @@ export const LandingPage = () => {
       roomName: roomName || `${username}的房间`,
       password,
       videoMeta: mockMeta
+    }, (res: { success: boolean; roomId?: string; error?: string }) => {
+       if (res.success && res.roomId) {
+         navigate(`/room/${res.roomId}`)
+       } else {
+         alert('创建失败: ' + (res.error || '未知错误'))
+       }
     })
   }
 
@@ -69,6 +69,12 @@ export const LandingPage = () => {
       roomId: targetRoomId,
       password,
       videoMeta: mockMeta
+    }, (res: { success: boolean; roomId?: string; error?: string }) => {
+       if (res.success && res.roomId) {
+         navigate(`/room/${res.roomId}`)
+       } else {
+         alert('加入失败: ' + (res.error || '未知错误'))
+       }
     })
   }
 
