@@ -30,7 +30,8 @@ export const useFileHandler = (roomId?: string) => {
   const pickFile = async () => {
     try {
       if ('showOpenFilePicker' in window) {
-        const [handle] = await window.showOpenFilePicker({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const [handle] = await (window as any).showOpenFilePicker({
           types: [
             {
               description: 'Video Files',
