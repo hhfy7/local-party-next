@@ -5,21 +5,23 @@ services:
     build:
       context: .
       dockerfile: packages/server/Dockerfile
+    image: local-party-backend:${TAG:-latest} # 使用环境变量，默认为 latest
     container_name: lp-backend
     restart: always
     environment:
       - PORT=4000
       - CORS_ORIGIN=*
     ports:
-      - '4000:4000'
+      - "4000:4000"
 
   local-party-frontend:
     build:
       context: .
       dockerfile: packages/client/Dockerfile
+    image: local-party-frontend:${TAG:-latest} # 使用环境变量
     container_name: lp-frontend
     restart: always
     ports:
-      - '3000:80'
+      - "3000:80"
     depends_on:
       - local-party-backend
