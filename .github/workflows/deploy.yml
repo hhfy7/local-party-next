@@ -2,7 +2,7 @@ name: Deploy to Aliyun ECS
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ['master']
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -18,9 +18,9 @@ jobs:
           script: |
             # 1. 进入项目目录
             cd /home/ecs-user/src/local-party-next
-            
+
             # 2. 给脚本加上执行权限 (防止万一)
             chmod +x deploy.sh
-            
+
             # 3. 执行我们写好的一键部署脚本
             ./deploy.sh

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@/stores/useAppStore'
+import { getLastRoom, clearLastRoom, saveLastRoom } from '@/utils/storage'
 import toast from 'react-hot-toast'
 
 // 图标组件
@@ -52,11 +53,28 @@ const IconBack = () => (
   </svg>
 )
 
+const IconRejoin = () => (
+  <svg
+    className="h-8 w-8 text-sky-600"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+    />
+  </svg>
+)
+
 export const LandingPage = () => {
   const navigate = useNavigate()
   const { connect, socket, connected } = useAppStore()
 
   const [view, setView] = useState<'menu' | 'create' | 'join'>('menu')
+  const [lastRoom, setLastRoom] = useState(() => getLastRoom())
 
   // 表单状态
   const [username, setUsername] = useState('')
@@ -84,6 +102,7 @@ export const LandingPage = () => {
       },
       (res: { success: boolean; roomId?: string; error?: string }) => {
         if (res.success && res.roomId) {
+          saveLastRoom(res.roomId)
           toast.success('房间创建成功！')
           navigate(`/room/${res.roomId}`)
         } else {
@@ -110,6 +129,7 @@ export const LandingPage = () => {
       },
       (res: { success: boolean; roomId?: string; error?: string }) => {
         if (res.success && res.roomId) {
+          saveLastRoom(res.roomId)
           toast.success('加入成功！')
           navigate(`/room/${res.roomId}`)
         } else {
@@ -117,6 +137,13 @@ export const LandingPage = () => {
         }
       },
     )
+  }
+
+  const handleForget = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    clearLastRoom()
+    setLastRoom(null)
+    toast.success('已清除历史记录', { icon: '🧹' })
   }
 
   return (
@@ -145,42 +172,87 @@ export const LandingPage = () => {
       <div className="relative w-full max-w-4xl">
         {/* 1. 菜单视图 */}
         {view === 'menu' && (
-          <div className="flex flex-col items-center justify-center gap-6 md:flex-row">
-            <button
-              onClick={() => setView('create')}
-              className="group relative flex h-72 w-full max-w-sm flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-100 md:w-80"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-indigo-50 transition-transform duration-300 group-hover:scale-110">
-                <IconCreate />
-              </div>
-              <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
-                创建房间
-              </h3>
-              <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
-                新建一个放映室
-                <br />
-                生成邀请链接
-              </p>
-            </button>
+          <div className="flex flex-col items-center justify-center gap-6">
+            {/* --- 新增：回到上次房间按钮 --- */}
+            {lastRoom && (
+              <div className="animate-fade-in-up mb-4 w-full max-w-sm md:w-80">
+                <button
+                  onClick={() => navigate(`/room/${lastRoom}`)}
+                  className="group relative flex w-full items-center justify-between overflow-hidden rounded-2xl bg-white p-4 shadow-lg ring-1 ring-sky-100 transition-all hover:scale-105 hover:bg-sky-50 hover:shadow-sky-100"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-600 group-hover:bg-sky-200 group-hover:text-sky-700">
+                      <IconRejoin />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-bold tracking-wider text-sky-600/70 uppercase">
+                        Continue
+                      </p>
+                      <p className="text-lg font-bold text-gray-900">
+                        回到房间 {lastRoom}
+                      </p>
+                    </div>
+                  </div>
 
-            <button
-              onClick={() => setView('join')}
-              className="group relative flex h-72 w-full max-w-sm flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-100 md:w-80"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50 transition-transform duration-300 group-hover:scale-110">
-                <IconJoin />
+                  {/* 忘记/清除按钮 */}
+                  <div
+                    onClick={handleForget}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-gray-200 hover:text-gray-500"
+                    title="忘记此房间"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </button>
               </div>
-              <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
-                加入房间
-              </h3>
-              <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
-                输入房间代码
-                <br />
-                加入朋友的聚会
-              </p>
-            </button>
+            )}
+
+            <div className="flex flex-col gap-6 md:flex-row">
+              <button
+                onClick={() => setView('create')}
+                className="group relative flex h-72 w-full max-w-sm flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-100 md:w-80"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-indigo-50 transition-transform duration-300 group-hover:scale-110">
+                  <IconCreate />
+                </div>
+                <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
+                  创建房间
+                </h3>
+                <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
+                  新建一个放映室
+                  <br />
+                  生成邀请链接
+                </p>
+              </button>
+
+              <button
+                onClick={() => setView('join')}
+                className="group relative flex h-72 w-full max-w-sm flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-100 md:w-80"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50 transition-transform duration-300 group-hover:scale-110">
+                  <IconJoin />
+                </div>
+                <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
+                  加入房间
+                </h3>
+                <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
+                  输入房间代码
+                  <br />
+                  加入朋友的聚会
+                </p>
+              </button>
+            </div>
           </div>
         )}
 

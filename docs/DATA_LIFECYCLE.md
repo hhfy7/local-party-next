@@ -34,7 +34,7 @@ const roomStore = new Map<string, RoomState>()
 
 ### 2.1 存储技术选型
 
-- **LocalStorage**: 存储简单的文本数据（昵称）。
+- **LocalStorage**: 存储简单的文本数据（昵称、导航状态）。
 - **IndexedDB (via idb-keyval)**: 存储复杂的对象数据（文件句柄 `FileSystemFileHandle`）。
 
 ### 2.2 数据项与过期策略 (TTL)
@@ -42,6 +42,7 @@ const roomStore = new Map<string, RoomState>()
 | 数据类型     | 存储位置     | Key 格式             | 有效期 (TTL) | 清理时机           | 占用空间 |
 | :----------- | :----------- | :------------------- | :----------- | :----------------- | :------- |
 | **用户昵称** | LocalStorage | `lp_username`        | 7 天         | 每次读取时检查     | < 1 KB   |
+| **上次房间** | LocalStorage | `last_visited_room`  | **永久**     | 用户手动清除/覆盖  | < 100 B  |
 | **视频句柄** | IndexedDB    | `lp_video_${roomId}` | 24 小时      | 每次进入房间时检查 | ~ 1 KB   |
 
 ### 2.3 垃圾回收机制 (Client GC)
@@ -58,13 +59,28 @@ const roomStore = new Map<string, RoomState>()
 
 ---
 
-## 3. 前端大文件内存保护 (Runtime Memory)
+## 3. 导航状态 (Navigation State)
 
-### 3.1 Blob URL 机制
+为了提供类 App 的“无缝回归”体验，我们引入了“最近访问房间”机制。
+
+### 3.1 逻辑流程
+
+1.  **记录 (Record)**: 当用户成功 **创建** 或 **加入** 房间时，`roomId` 会被写入 `localStorage.last_visited_room`。
+2.  **引导 (Rejoin)**: 用户下次访问首页 (`/`) 时，系统检测到该记录，会在 UI 显眼位置渲染 **"回到房间 XXX"** 按钮。
+3.  **覆盖 (Override)**: 若用户选择创建/加入新房间，记录会被新 ID 覆盖（只保留最后一次）。
+4.  **忘记 (Forget)**: 用户点击 UI 上的“关闭/忘记”按钮，或显式“退出房间”时，该记录被立即删除。
+
+这既解决了“孤儿房间”难以找回的问题，又通过显式的“忘记”操作保护了用户隐私。
+
+---
+
+## 4. 前端大文件内存保护 (Runtime Memory)
+
+### 4.1 Blob URL 机制
 
 前端播放本地视频使用了 `URL.createObjectURL(file)`。这个 API 会在浏览器内存中创建一个指向文件的引用。如果不释放，即使页面跳转，这块内存（可能高达数 GB）也可能不被回收。
 
-### 3.2 严格释放策略
+### 4.2 严格释放策略
 
 在 `useFileHandler.ts` 中，我们实现了严格的生命周期管理：
 
@@ -81,7 +97,7 @@ const loadVideo = (file: File) => {
 
 ---
 
-## 4. 总结
+## 5. 总结
 
 - **隐私性**: 视频文件**物理隔离**，仅在用户本地磁盘和浏览器内存中流转，绝不上传服务器。
 - **服务器**: 零持久化，人走房空，自动 GC。

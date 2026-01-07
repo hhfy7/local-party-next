@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/useAppStore'
-import { getNickname, saveNickname } from '@/utils/storage'
+import { getNickname, saveNickname, saveLastRoom } from '@/utils/storage'
 import toast from 'react-hot-toast'
 
 export const useRoomLogic = (roomId?: string) => {
@@ -38,6 +38,7 @@ export const useRoomLogic = (roomId?: string) => {
 
           if (res.success) {
             saveNickname(username)
+            saveLastRoom(roomId)
             if (!isAuto) toast.success(`欢迎加入, ${username}!`, { icon: '🎉' })
           } else {
             if (isAuto) {

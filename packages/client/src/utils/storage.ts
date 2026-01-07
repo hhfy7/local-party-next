@@ -43,6 +43,22 @@ export const getNickname = (): string | null => {
   }
 }
 
+// --- LocalStorage (Last Room) ---
+
+const LAST_ROOM_KEY = 'last_visited_room'
+
+export const saveLastRoom = (roomId: string) => {
+  localStorage.setItem(LAST_ROOM_KEY, roomId)
+}
+
+export const getLastRoom = (): string | null => {
+  return localStorage.getItem(LAST_ROOM_KEY)
+}
+
+export const clearLastRoom = () => {
+  localStorage.removeItem(LAST_ROOM_KEY)
+}
+
 // --- IndexedDB (Video Handle) ---
 
 const getVideoKey = (roomId: string) => `lp_video_${roomId}`

@@ -68,11 +68,7 @@ docker-compose ps
 
 ## 3. 日常运维操作 (自动化脚本)
 
-
-
 我们提供了一个 `deploy.sh` 脚本，封装了所有常用操作。
-
-
 
 ### 场景 A: 一键发布 (最常用)
 
@@ -84,8 +80,6 @@ docker-compose ps
 
 ```
 
-
-
 ### 场景 B: 仅构建 (不重启)
 
 ```bash
@@ -93,8 +87,6 @@ docker-compose ps
 ./deploy.sh build
 
 ```
-
-
 
 ### 场景 C: 版本回滚
 
@@ -108,8 +100,6 @@ docker-compose ps
 
 ```
 
-
-
 ### 场景 D: 手动清理
 
 ```bash
@@ -117,8 +107,6 @@ docker-compose ps
 ./deploy.sh clean
 
 ```
-
-
 
 ### (备用) 手动操作流程
 
