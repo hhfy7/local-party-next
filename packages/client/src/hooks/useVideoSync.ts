@@ -57,7 +57,7 @@ export const useVideoSync = (
   // 2. 处理文件加载后的初始同步
   const handleVideoLoaded = () => {
     const video = videoRef.current
-    
+
     // 如果没有视频、没有初始状态，或者已经同步过了，直接跳过
     if (!video || !lastAction || hasSyncedInitialState.current) return
 
@@ -85,13 +85,13 @@ export const useVideoSync = (
   const sendSync = useCallback(
     (type: SyncAction['type']) => {
       const video = videoRef.current
-      
+
       // 卫语句：
       // 1. 视频未加载
       // 2. Socket 未连接
       // 3. 正在响应远程指令 (避免死循环)
       if (!video || !socket || isRemoteAction.current) return
-      
+
       // 4. [新增] 正在跳转中 (抑制中间的 play/pause)
       // 如果是 seeking 状态下触发了 play/pause，忽略之
       if (isSeekingRef.current && type !== 'seek') return
@@ -112,17 +112,17 @@ export const useVideoSync = (
 
     const onPlay = () => sendSync('play')
     const onPause = () => sendSync('pause')
-    
+
     const onSeeked = () => {
       // 防抖：只有当用户停止拖动（不再频繁触发 seeked）后才发送
       if (seekDebounceTimer.current) {
         clearTimeout(seekDebounceTimer.current)
       }
-      
+
       seekDebounceTimer.current = window.setTimeout(() => {
         // Seek 结束，发送状态
         sendSync('seek')
-        
+
         // 发送后延迟释放锁，防止后续自动触发的 play/pause
         setTimeout(() => {
           isSeekingRef.current = false

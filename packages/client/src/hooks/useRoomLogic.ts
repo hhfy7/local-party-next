@@ -44,17 +44,19 @@ export const useRoomLogic = (roomId?: string) => {
             if (isAuto) {
               console.warn('[Auto Join Failed]', res.error)
               if (res.error === '房间不存在') {
-                setErrorMsg('原房间已解散或不存在')
+                setErrorMsg('房间不存在')
               }
             } else {
               toast.error('加入失败: ' + (res.error || '未知错误'))
-              if (res.error === '房间不存在') navigate('/')
+              if (res.error === '房间不存在') {
+                setErrorMsg('房间不存在')
+              }
             }
           }
         },
       )
     },
-    [socket, roomId, navigate],
+    [socket, roomId],
   )
 
   // 3. 自动登录尝试
@@ -76,11 +78,38 @@ export const useRoomLogic = (roomId?: string) => {
     }
   }, [socket, connected, roomId, currentUser, handleJoin])
 
+  // 3. 核心创建逻辑 (用于重生)
+  const handleCreate = useCallback(() => {
+    if (!socket) return
+    const username = getNickname() || '新用户'
+
+    socket.emit(
+      'create_room',
+      {
+        username,
+        roomName: `${username}的房间`,
+        password: '',
+        videoMeta: { duration: 0, fileSize: 0 },
+      },
+      (res: { success: boolean; roomId?: string; error?: string }) => {
+        if (res.success && res.roomId) {
+          saveLastRoom(res.roomId)
+          toast.success('新房间已开启', { icon: '✨' })
+          navigate(`/room/${res.roomId}`)
+          setErrorMsg(null)
+        } else {
+          toast.error('创建失败: ' + (res.error || '未知错误'))
+        }
+      },
+    )
+  }, [socket, navigate])
+
   return {
     currentUser,
     isAutoJoining,
     errorMsg,
     handleJoin,
+    handleCreate,
     navigate,
   }
 }

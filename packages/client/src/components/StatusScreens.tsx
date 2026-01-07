@@ -6,9 +6,9 @@ interface ErrorScreenProps {
 export const ErrorScreen = ({ message, onBack }: ErrorScreenProps) => (
   <div className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-gray-50 text-gray-900">
     <div className="max-w-md rounded-3xl bg-white p-12 text-center shadow-xl ring-1 ring-gray-100">
-      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-50">
+      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-rose-50">
         <svg
-          className="h-10 w-10 text-red-500"
+          className="h-10 w-10 text-rose-500"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -29,6 +29,60 @@ export const ErrorScreen = ({ message, onBack }: ErrorScreenProps) => (
       >
         返回首页
       </button>
+    </div>
+  </div>
+)
+
+interface RoomNotFoundScreenProps {
+  roomId: string
+  onCreateNew: () => void
+  onBack: () => void
+}
+
+export const RoomNotFoundScreen = ({
+  roomId,
+  onCreateNew,
+  onBack,
+}: RoomNotFoundScreenProps) => (
+  <div className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-gray-50 text-gray-900">
+    <div className="w-full max-w-md rounded-[2.5rem] bg-white p-12 text-center shadow-2xl ring-1 shadow-gray-200/50 ring-gray-100">
+      <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-amber-50">
+        <svg
+          className="h-12 w-12 text-amber-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      </div>
+      <h2 className="mb-4 text-3xl font-black tracking-tight text-gray-900">
+        房间已失效
+      </h2>
+      <p className="mb-10 text-lg leading-relaxed text-gray-500">
+        房间{' '}
+        <span className="font-mono font-bold text-amber-600">{roomId}</span>{' '}
+        已关闭或过期。您可以立即开启一个新的放映室。
+      </p>
+      <div className="flex flex-col gap-4">
+        <button
+          onClick={onCreateNew}
+          className="w-full rounded-2xl bg-indigo-600 py-4 text-lg font-bold text-white shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 hover:bg-indigo-700 hover:shadow-indigo-300 active:translate-y-0"
+        >
+          ✨ 立即新建房间
+        </button>
+        <button
+          onClick={onBack}
+          className="w-full rounded-2xl py-4 text-lg font-bold text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-900"
+        >
+          回到首页
+        </button>
+      </div>
     </div>
   </div>
 )

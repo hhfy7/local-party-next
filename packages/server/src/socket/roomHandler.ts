@@ -75,6 +75,9 @@ export const registerRoomHandlers = (
         return
       }
 
+      // 如果房间正在“缓刑期”，取消清理计时器
+      roomStore.cancelCleanup(roomId)
+
       if (room.password && room.password !== password) {
         if (callback) callback({ success: false, error: '密码错误' })
         return
@@ -214,8 +217,11 @@ export const registerRoomHandlers = (
         console.log(`[Left] ${username} left Room:${roomId}`)
 
         if (room.users.length === 0) {
-          roomStore.deleteRoom(roomId)
-          console.log(`[Destroy] Room:${roomId} deleted.`)
+          // 不再立即删除，进入 5 分钟缓刑期
+          roomStore.scheduleCleanup(roomId)
+          console.log(
+            `[Grace] Room:${roomId} is now empty. Grace period started.`,
+          )
         }
         break
       }
