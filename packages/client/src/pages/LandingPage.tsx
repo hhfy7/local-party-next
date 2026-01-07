@@ -313,6 +313,7 @@ export const LandingPage = () => {
                   </label>
                   <input
                     type="password"
+                    autoComplete="new-password"
                     maxLength={20}
                     className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600"
                     value={password}
@@ -391,6 +392,7 @@ export const LandingPage = () => {
                   </label>
                   <input
                     type="password"
+                    autoComplete="current-password"
                     maxLength={20}
                     className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600"
                     value={password}
