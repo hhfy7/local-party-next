@@ -42,7 +42,7 @@ export const JoinModal = ({ roomId, onJoin }: JoinModalProps) => {
             <input
               type="text"
               maxLength={12}
-              className="w-full rounded-2xl border-0 bg-gray-50 px-6 py-4.5 text-lg font-bold text-gray-900 ring-1 ring-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600 shadow-sm outline-none"
+              className="w-full rounded-2xl border-0 bg-gray-50 px-6 py-4.5 text-lg font-bold text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600"
               placeholder="例如: Jack"
               value={name}
               onChange={e => setName(e.target.value)}

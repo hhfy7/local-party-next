@@ -6,7 +6,11 @@ interface PortalTooltipProps {
   isVisible: boolean
 }
 
-export const PortalTooltip = ({ content, targetRect, isVisible }: PortalTooltipProps) => {
+export const PortalTooltip = ({
+  content,
+  targetRect,
+  isVisible,
+}: PortalTooltipProps) => {
   if (!isVisible || !targetRect) return null
 
   // 计算位置：默认在下方，居中对齐
@@ -19,14 +23,14 @@ export const PortalTooltip = ({ content, targetRect, isVisible }: PortalTooltipP
   }
 
   return createPortal(
-    <div 
-      style={style} 
-      className="bg-gray-900 text-white text-[10px] px-3 py-1.5 rounded-lg shadow-xl animate-fade-in pointer-events-none"
+    <div
+      style={style}
+      className="animate-fade-in pointer-events-none rounded-lg bg-gray-900 px-3 py-1.5 text-[10px] text-white shadow-xl"
     >
       {content}
       {/* 小三角 (朝上) */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
     </div>,
-    document.body
+    document.body,
   )
 }

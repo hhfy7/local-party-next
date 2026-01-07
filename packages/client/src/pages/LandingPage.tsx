@@ -95,7 +95,8 @@ export const LandingPage = () => {
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!socket || !username || !targetRoomId) return toast.error('请填写完整信息')
+    if (!socket || !username || !targetRoomId)
+      return toast.error('请填写完整信息')
 
     const mockMeta = { duration: 0, fileSize: 0 }
 
@@ -156,7 +157,7 @@ export const LandingPage = () => {
               <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
                 创建房间
               </h3>
-              <p className="relative mt-2 text-center text-sm text-gray-500 leading-relaxed">
+              <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
                 新建一个放映室
                 <br />
                 生成邀请链接
@@ -174,7 +175,7 @@ export const LandingPage = () => {
               <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
                 加入房间
               </h3>
-              <p className="relative mt-2 text-center text-sm text-gray-500 leading-relaxed">
+              <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
                 输入房间代码
                 <br />
                 加入朋友的聚会
@@ -198,46 +199,50 @@ export const LandingPage = () => {
 
             <form
               onSubmit={handleCreate}
-              className="rounded-[2.5rem] bg-white p-10 shadow-2xl shadow-gray-200/50 ring-1 ring-gray-100"
+              className="rounded-[2.5rem] bg-white p-10 shadow-2xl ring-1 shadow-gray-200/50 ring-gray-100"
             >
               <div className="space-y-6">
                 <div>
-                  <label className="mb-2.5 block text-sm font-bold text-gray-700 ml-1">
+                  <label className="mb-2.5 ml-1 block text-sm font-bold text-gray-700">
                     你的昵称
                   </label>
                   <input
                     type="text"
                     required
                     maxLength={12}
-                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 ring-1 ring-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600 shadow-sm outline-none"
+                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600"
                     placeholder="例如: Jack"
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="mb-2.5 block text-sm font-bold text-gray-700 ml-1">
+                  <label className="mb-2.5 ml-1 block text-sm font-bold text-gray-700">
                     房间名称{' '}
-                    <span className="font-normal text-gray-400 ml-1">(可选)</span>
+                    <span className="ml-1 font-normal text-gray-400">
+                      (可选)
+                    </span>
                   </label>
                   <input
                     type="text"
                     maxLength={30}
-                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 ring-1 ring-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600 shadow-sm outline-none"
+                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600"
                     placeholder={`默认: ${username ? username : '我'}的房间`}
                     value={roomName}
                     onChange={e => setRoomName(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="mb-2.5 block text-sm font-bold text-gray-700 ml-1">
+                  <label className="mb-2.5 ml-1 block text-sm font-bold text-gray-700">
                     房间密码{' '}
-                    <span className="font-normal text-gray-400 ml-1">(可选)</span>
+                    <span className="ml-1 font-normal text-gray-400">
+                      (可选)
+                    </span>
                   </label>
                   <input
                     type="password"
                     maxLength={20}
-                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 ring-1 ring-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600 shadow-sm outline-none"
+                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-indigo-600"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                   />
@@ -248,7 +253,7 @@ export const LandingPage = () => {
                 <button
                   type="submit"
                   disabled={!connected}
-                  className="w-full rounded-2xl bg-indigo-600 py-4.5 text-lg font-bold text-white shadow-xl shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-indigo-300 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+                  className="w-full rounded-2xl bg-indigo-600 py-4.5 text-lg font-bold text-white shadow-xl shadow-indigo-200 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-indigo-300 active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none"
                 >
                   立即创建
                 </button>
@@ -272,32 +277,32 @@ export const LandingPage = () => {
 
             <form
               onSubmit={handleJoin}
-              className="rounded-[2.5rem] bg-white p-10 shadow-2xl shadow-gray-200/50 ring-1 ring-gray-100"
+              className="rounded-[2.5rem] bg-white p-10 shadow-2xl ring-1 shadow-gray-200/50 ring-gray-100"
             >
               <div className="space-y-6">
                 <div>
-                  <label className="mb-2.5 block text-sm font-bold text-gray-700 ml-1">
+                  <label className="mb-2.5 ml-1 block text-sm font-bold text-gray-700">
                     你的昵称
                   </label>
                   <input
                     type="text"
                     required
                     maxLength={12}
-                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 ring-1 ring-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600 shadow-sm outline-none"
+                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600"
                     placeholder="例如: Rose"
                     value={username}
                     onChange={e => setUsername(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="mb-2.5 block text-sm font-bold text-gray-700 ml-1">
+                  <label className="mb-2.5 ml-1 block text-sm font-bold text-gray-700">
                     房间代码
                   </label>
                   <input
                     type="text"
                     required
                     maxLength={5}
-                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-5 text-center font-mono text-3xl font-black tracking-[0.2em] text-emerald-600 uppercase ring-1 ring-gray-200 transition-all placeholder:font-sans placeholder:text-base placeholder:tracking-normal placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600 shadow-sm outline-none"
+                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-5 text-center font-mono text-3xl font-black tracking-[0.2em] text-emerald-600 uppercase shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:font-sans placeholder:text-base placeholder:tracking-normal placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600"
                     placeholder="输入5位代码"
                     value={targetRoomId}
                     onChange={e =>
@@ -306,14 +311,16 @@ export const LandingPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="mb-2.5 block text-sm font-bold text-gray-700 ml-1">
+                  <label className="mb-2.5 ml-1 block text-sm font-bold text-gray-700">
                     房间密码{' '}
-                    <span className="font-normal text-gray-400 ml-1">(可选)</span>
+                    <span className="ml-1 font-normal text-gray-400">
+                      (可选)
+                    </span>
                   </label>
                   <input
                     type="password"
                     maxLength={20}
-                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 ring-1 ring-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600 shadow-sm outline-none"
+                    className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-4 text-gray-900 shadow-sm ring-1 ring-gray-200 transition-all outline-none placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-emerald-600"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                   />
@@ -324,7 +331,7 @@ export const LandingPage = () => {
                 <button
                   type="submit"
                   disabled={!connected}
-                  className="w-full rounded-2xl bg-emerald-600 py-4.5 text-lg font-bold text-white shadow-xl shadow-emerald-200 transition-all hover:bg-emerald-700 hover:shadow-emerald-300 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+                  className="w-full rounded-2xl bg-emerald-600 py-4.5 text-lg font-bold text-white shadow-xl shadow-emerald-200 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-emerald-300 active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none"
                 >
                   加入房间
                 </button>
@@ -337,7 +344,7 @@ export const LandingPage = () => {
       {/* 底部状态 */}
       <div className="fixed bottom-8 flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-gray-500 shadow-sm ring-1 ring-gray-100">
         <div
-          className={`h-2 w-2 rounded-full animate-pulse ${connected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500'}`}
+          className={`h-2 w-2 animate-pulse rounded-full ${connected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-rose-500'}`}
         ></div>
         {connected ? '服务器已就绪' : '正在连接服务器...'}
       </div>

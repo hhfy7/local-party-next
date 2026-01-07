@@ -1,6 +1,8 @@
 // This file contains type definitions for the experimental File System Access API.
 // These interfaces are based on the W3C specification.
 
+/// <reference types="vite/client" />
+
 interface FileSystemFileHandle {
   readonly kind: 'file'
   readonly name: string
@@ -34,8 +36,11 @@ interface OpenFilePickerOptions {
 }
 
 // Augment the global Window interface
-interface Window {
-  showOpenFilePicker(
-    options?: OpenFilePickerOptions,
-  ): Promise<[FileSystemFileHandle]>
+declare global {
+  interface Window {
+    showOpenFilePicker: (options?: {
+    types: { description: string; accept: Record<string, string[]> }[]
+    multiple?: boolean
+  }) => Promise<FileSystemFileHandle[]>
+  }
 }

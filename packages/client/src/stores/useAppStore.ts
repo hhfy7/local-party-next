@@ -7,8 +7,7 @@ import {
   SyncAction,
   User,
 } from '@local-party/shared/src/types'
-
-const SOCKET_URL = 'http://localhost:4000'
+import { SOCKET_URL } from '@/utils/constants'
 
 interface AppState {
   socket: Socket<ServerToClientEvents, ClientToServerEvents> | null

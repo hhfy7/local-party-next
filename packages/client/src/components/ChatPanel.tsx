@@ -52,19 +52,25 @@ export const ChatPanel = ({ className }: ChatPanelProps) => {
 
           // --- 系统消息 (居中，灰色小字) ---
           if (msg.type === 'system') {
-            const isSystemUser = msg.username === 'System' || msg.username === '未知'
-            
+            const isSystemUser =
+              msg.username === 'System' || msg.username === '未知'
+
             return (
-              <div key={msg.id} className="my-4 flex justify-center opacity-85 animate-message-in">
-                <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500 border border-gray-200 shadow-sm">
-                  <span className="font-mono text-[10px] text-gray-400 mr-1">{time}</span>
-                  
+              <div
+                key={msg.id}
+                className="animate-message-in my-4 flex justify-center opacity-85"
+              >
+                <span className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs text-gray-500 shadow-sm">
+                  <span className="mr-1 font-mono text-[10px] text-gray-400">
+                    {time}
+                  </span>
+
                   {!isSystemUser && (
-                    <span className="font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100/50">
+                    <span className="rounded border border-indigo-100/50 bg-indigo-50 px-1.5 py-0.5 font-bold text-indigo-600">
                       {msg.username}
                     </span>
                   )}
-                  
+
                   <span>{msg.content}</span>
                 </span>
               </div>

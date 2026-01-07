@@ -346,16 +346,16 @@ export const RoomPage = () => {
 
         {/* 用户列表 (New Status Logic) */}
         {/* 用户列表 */}
-        <div className="px-6 py-4 bg-white border-b border-gray-100 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
-           {users.map(u => (
-             <UserItem 
-               key={u.id} 
-               user={u} 
-               isHost={u.id === (users[0]?.id || '')} // 简单判断第一个为房主
-               isMe={u.id === currentUser?.id}
-               hostDuration={users[0]?.videoDuration}
-             />
-           ))}
+        <div className="scrollbar-hide flex shrink-0 gap-2.5 overflow-x-auto border-b border-gray-100 bg-white px-6 py-4">
+          {users.map(u => (
+            <UserItem
+              key={u.id}
+              user={u}
+              isHost={u.id === (users[0]?.id || '')} // 简单判断第一个为房主
+              isMe={u.id === currentUser?.id}
+              hostDuration={users[0]?.videoDuration}
+            />
+          ))}
         </div>
 
         <ChatPanel className="min-h-0 flex-1" />

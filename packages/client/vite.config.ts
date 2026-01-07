@@ -4,7 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+// 这里的 ({ command }) 就是解构了 Vite 传给我们的环境对象
+export default defineConfig(({ command }) => ({
+  // 如果是本地开发(serve)，基础路径就是根目录 /
+  // 如果是打包发布(build)，基础路径就是你公网子目录 /local-party/
+  base: command === 'serve' ? '/' : '/local-party/', // 开发环境用根路径，生产打包用子路径
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -15,4 +19,4 @@ export default defineConfig({
     port: 5173,
     host: true, // Enable network access for iPad testing
   },
-})
+}))

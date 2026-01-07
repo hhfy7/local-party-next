@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  local-party-backend:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: lp-backend
+    restart: always
+    environment:
+      - PORT=4000
+      - CORS_ORIGIN=*
+    ports:
+      - '4000:4000'
+
+  local-party-frontend:
+    build:
+      context: .
+      dockerfile: packages/client/Dockerfile
+    container_name: lp-frontend
+    restart: always
+    ports:
+      - '3000:80'
+    depends_on:
+      - local-party-backend

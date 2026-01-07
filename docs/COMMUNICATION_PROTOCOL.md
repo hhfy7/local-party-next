@@ -70,8 +70,8 @@
 - **Payload**:
   ```typescript
   {
-    duration: number; // 视频时长 (秒)
-    fileName: string; // 文件名
+    duration: number // 视频时长 (秒)
+    fileName: string // 文件名
   }
   ```
 - **Server 处理**: 更新内存中该 User 对象的属性。
@@ -88,7 +88,7 @@
 - **Payload**:
   ```typescript
   {
-    type: 'play' | 'pause' | 'seek';
+    type: 'play' | 'pause' | 'seek'
     timestamp: number
   }
   ```
@@ -110,17 +110,19 @@
 ## 4. 即时通讯 (Chat)
 
 ### 4.1 发送消息 (`send_message`)
-*   Payload: `string`
+
+- Payload: `string`
 
 ### 4.2 接收消息 (`receive_message`)
+
 - **Payload**:
   ```typescript
   {
-    id: string;
-    type: 'text' | 'system';
-    username: string; // 若为系统消息，此处为触发者名字
-    content: string;  // 纯文本内容
-    timestamp: number;
+    id: string
+    type: 'text' | 'system'
+    username: string // 若为系统消息，此处为触发者名字
+    content: string // 纯文本内容
+    timestamp: number
   }
   ```
 - **Client 渲染**:
@@ -132,12 +134,14 @@
 ## 5. 异常与销毁
 
 ### 5.1 断开连接 (`disconnect`)
-*   触发 `user_left` 广播。
-*   若房间空，立即销毁。
+
+- 触发 `user_left` 广播。
+- 若房间空，立即销毁。
 
 ### 5.2 错误反馈
-*   事件: `error`
-*   UI: 显示 Toast 提示。
+
+- 事件: `error`
+- UI: 显示 Toast 提示。
 
 ---
 
