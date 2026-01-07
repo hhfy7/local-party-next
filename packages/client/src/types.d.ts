@@ -39,8 +39,8 @@ interface OpenFilePickerOptions {
 declare global {
   interface Window {
     showOpenFilePicker: (options?: {
-    types: { description: string; accept: Record<string, string[]> }[]
-    multiple?: boolean
-  }) => Promise<FileSystemFileHandle[]>
+      types: { description: string; accept: Record<string, string[]> }[]
+      multiple?: boolean
+    }) => Promise<FileSystemFileHandle[]>
   }
 }

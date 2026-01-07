@@ -6,7 +6,7 @@ WORKDIR /app
 RUN npm install -g pnpm
 
 # 复制 workspace 配置文件
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 

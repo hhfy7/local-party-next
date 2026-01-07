@@ -8,11 +8,14 @@ import {
 
 interface VideoPlayerProps extends Omit<
   React.VideoHTMLAttributes<HTMLVideoElement>,
-  'src'
+  'src' | 'onDurationChange'
 > {
   src: string | null
+
   className?: string
+
   onDurationChange?: (duration: number) => void
+
   onVideoClick?: () => void
 }
 
@@ -26,8 +29,8 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       null,
     )
 
-    const idleTimer = useRef<NodeJS.Timeout | null>(null)
-    const feedbackTimer = useRef<NodeJS.Timeout | null>(null)
+    const idleTimer = useRef<number | null>(null)
+    const feedbackTimer = useRef<number | null>(null)
 
     useImperativeHandle(ref, () => internalRef.current!)
 
