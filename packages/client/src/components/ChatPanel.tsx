@@ -38,7 +38,10 @@ export const ChatPanel = ({ className }: ChatPanelProps) => {
       className={`flex flex-col border-l border-gray-100 bg-gray-50 ${className}`}
     >
       {/* 消息列表 */}
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 pb-28 md:pb-4" ref={scrollRef}>
+      <div
+        className="flex-1 space-y-4 overflow-y-auto p-4 pb-28 md:pb-4"
+        ref={scrollRef}
+      >
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center space-y-2 text-gray-400">
             <span className="text-4xl">👋</span>
@@ -119,7 +122,7 @@ export const ChatPanel = ({ className }: ChatPanelProps) => {
       {/* 输入框区域 */}
       <form
         onSubmit={handleSend}
-        className="fixed bottom-0 right-0 left-0 z-50 border-t border-gray-100 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md md:relative md:z-20 md:bg-white md:pb-4 md:shadow-none"
+        className="fixed right-0 bottom-0 left-0 z-50 border-t border-gray-100 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md md:relative md:z-20 md:bg-white md:pb-4 md:shadow-none"
       >
         <div className="relative flex items-center gap-2">
           <input

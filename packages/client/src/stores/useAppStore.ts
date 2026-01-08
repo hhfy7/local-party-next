@@ -116,7 +116,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentUser: user => set({ currentUser: user }),
   setRoomInfo: (roomId, users, history) =>
     set({ roomId, users, messages: history }),
-  setLastAction: action => set({ lastAction: action, lastActionAt: Date.now() }),
+  setLastAction: action =>
+    set({ lastAction: action, lastActionAt: Date.now() }),
   addUser: user => set(state => ({ users: [...state.users, user] })),
   removeUser: userId =>
     set(state => ({ users: state.users.filter(u => u.id !== userId) })),

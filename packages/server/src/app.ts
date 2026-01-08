@@ -17,12 +17,11 @@ const app = express()
 app.use(cors())
 
 // 尝试加载 SSL 证书 (从项目根目录的 keys 文件夹)
-const rootDir = path.resolve(__dirname, '../../../') 
+const rootDir = path.resolve(__dirname, '../../../')
 const keyPath = path.join(rootDir, 'keys/key.pem')
 const certPath = path.join(rootDir, 'keys/cert.pem')
 
 console.log('[Server] Checking for keys at:', keyPath) // Debug Log
-
 
 let httpServer
 let protocol = 'http'

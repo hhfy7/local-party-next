@@ -25,7 +25,9 @@ export const useRoomLogic = (roomId?: string) => {
     (username: string, isAuto = false) => {
       if (!socket || !roomId) return
 
-      console.log(`[Client] Joining room: "${roomId}" with username: "${username}"`)
+      console.log(
+        `[Client] Joining room: "${roomId}" with username: "${username}"`,
+      )
 
       socket.emit(
         'join_room',

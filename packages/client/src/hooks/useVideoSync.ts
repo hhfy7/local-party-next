@@ -15,14 +15,14 @@ export const useVideoSync = (
   const hasSyncedInitialState = useRef(false)
   const seekDebounceTimer = useRef<number | null>(null)
   const isSeekingRef = useRef(false)
-  
+
   // 新增：手动暂停状态检测
   const [isManualPaused, setIsManualPaused] = useState(false)
 
   // 定期检测是否处于“主动掉队”状态 (房主 Play，我 Pause)
   useEffect(() => {
     if (!videoRef.current || isHost) return
-    
+
     const checkStatus = () => {
       const video = videoRef.current
       if (!video) return
@@ -31,11 +31,11 @@ export const useVideoSync = (
       const isLocalPaused = video.paused
       setIsManualPaused(!!(isRoomPlaying && isLocalPaused))
     }
-    
+
     const timer = setInterval(checkStatus, 1000)
     videoRef.current.addEventListener('pause', checkStatus)
     videoRef.current.addEventListener('play', checkStatus)
-    
+
     return () => {
       clearInterval(timer)
       if (videoRef.current) {
@@ -111,10 +111,12 @@ export const useVideoSync = (
 
       // 误差 > 2秒 -> 强制拉回
       if (diff > 2.0) {
-        console.log(`[AutoSync] Diff: ${diff.toFixed(2)}s. Syncing to ${payload.timestamp}`)
+        console.log(
+          `[AutoSync] Diff: ${diff.toFixed(2)}s. Syncing to ${payload.timestamp}`,
+        )
         isRemoteAction.current = true
         video.currentTime = payload.timestamp
-        
+
         // 绿色 Toast 提示
         toast.success('已自动同步房主进度', {
           id: 'auto-sync',
@@ -126,7 +128,7 @@ export const useVideoSync = (
             fontSize: '12px',
             fontWeight: 'bold',
           },
-          icon: '🔄'
+          icon: '🔄',
         })
 
         setTimeout(() => {
@@ -161,10 +163,10 @@ export const useVideoSync = (
       // 但一般 lastActionAt 是 Date.now() 初始化，所以通常是准的
       targetTime += elapsed
     }
-    
+
     // 防御：不要超过视频总时长
     if (video.duration && targetTime > video.duration) {
-        targetTime = video.duration
+      targetTime = video.duration
     }
 
     video.currentTime = targetTime
@@ -204,20 +206,20 @@ export const useVideoSync = (
     if (!video || !lastAction) return
 
     isRemoteAction.current = true
-    
+
     let targetTime = lastAction.timestamp
     if (lastAction.type === 'play') {
       const elapsed = (Date.now() - lastActionAt) / 1000
       targetTime += elapsed
     }
-    
+
     video.currentTime = targetTime
     if (lastAction.type === 'play') {
       video.play().catch(() => {})
     } else {
       video.pause()
     }
-    
+
     setTimeout(() => {
       isRemoteAction.current = false
     }, 1000)
@@ -229,15 +231,19 @@ export const useVideoSync = (
     const video = videoRef.current
     if (!video) return
 
-    const onSeeking = () => { isSeekingRef.current = true }
+    const onSeeking = () => {
+      isSeekingRef.current = true
+    }
     const onPlay = () => sendSync('play')
     const onPause = () => sendSync('pause')
-    
+
     const onSeeked = () => {
       if (seekDebounceTimer.current) clearTimeout(seekDebounceTimer.current)
       seekDebounceTimer.current = window.setTimeout(() => {
         sendSync('seek')
-        setTimeout(() => { isSeekingRef.current = false }, 500)
+        setTimeout(() => {
+          isSeekingRef.current = false
+        }, 500)
       }, 600)
     }
 

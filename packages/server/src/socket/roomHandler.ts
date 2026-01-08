@@ -145,22 +145,22 @@ export const registerRoomHandlers = (
   })
 
   // --- 心跳同步 (Host Only) ---
-  socket.on('send_heartbeat', (payload) => {
+  socket.on('send_heartbeat', payload => {
     const allRooms = roomStore.getAllRooms()
     for (const [roomId, room] of Object.entries(allRooms)) {
       if (room.hostId === socket.id) {
         // 更新服务端的 lastAction，确保新加入的人拿到的是最新的
         if (room.lastAction) {
-           room.lastAction.timestamp = payload.timestamp
-           room.lastAction.type = payload.paused ? 'pause' : 'play'
+          room.lastAction.timestamp = payload.timestamp
+          room.lastAction.type = payload.paused ? 'pause' : 'play'
         } else {
-           // 如果之前没有任何动作，初始化一个
-           room.lastAction = {
-             type: payload.paused ? 'pause' : 'play',
-             timestamp: payload.timestamp
-           }
+          // 如果之前没有任何动作，初始化一个
+          room.lastAction = {
+            type: payload.paused ? 'pause' : 'play',
+            timestamp: payload.timestamp,
+          }
         }
-        
+
         // 广播给房间里其他人
         socket.to(roomId).emit('receive_heartbeat', payload)
         break

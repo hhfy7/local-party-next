@@ -1,166 +1,122 @@
 # Local Party Next 通信协议与交互流程文档
 
-本文档详细描述了客户端 (`Client`) 与服务端 (`Server`) 之间的实时通信机制。本项目完全基于 **WebSocket (Socket.io)** 协议，不使用传统的 HTTP REST API 处理业务逻辑。
+本文档详细描述了客户端 (`Client`) 与服务端 (`Server`) 之间的实时通信机制。本项目完全基于 **WebSocket (Socket.io)** 协议。
+
+> **核心架构变更 (2026-01)**: 系统已从“P2P 民主同步”迁移至 **“房主权威 (Host-Authoritative) + 心跳同步”** 模式。
 
 ---
 
 ## 1. 连接建立 (Connection)
 
-- **协议**: WebSocket (`ws` / `wss`)
-- **鉴权**: 无（匿名连接，通过 `socket.id` 标识会话）。
-- **握手流程**:
-  1.  Client: `io(URL)` 发起连接。
-  2.  Server: 接受连接，分配唯一 `socket.id`。
-  3.  Client: 监听 `connect` 事件，置位 `connected: true`，开启自动重连机制。
+- **协议**: WebSocket (`wss` 推荐 / `ws`)
+- **环境**: 开发环境需配置自签名证书以支持 HTTPS。
+- **流程**: Client 连接 -> Server 分配 `socket.id` -> 监听 `connect`。
 
 ---
 
 ## 2. 房间管理 (Room Management)
 
-### 2.1 创建房间 (`create_room`)
+### 2.1 创建/加入房间 (`create_room` / `join_room`)
 
-- **方向**: Client -> Server
-- **类型**: Request-Response (带 ACK 回调)
-- **Payload**:
+- **Server 响应**:
   ```typescript
   {
-    username: string;
-    roomName: string;
-    password?: string;
-    videoMeta: { duration: number; fileSize: number }
+    roomId: string,
+    hostId: string, // 关键：告知客户端谁是房主
+    currentStatus: SyncAction, // 房间当前的静态状态
+    // ...
   }
   ```
-- **Server 处理**:
-  1.  生成 5 位随机 RoomID (e.g., "X9Z2A")。
-  2.  在内存 `roomStore` 中实例化房间对象。
-  3.  执行 `socket.join(roomId)`。
-- **Server 响应 (ACK Callback)**:
-  ```typescript
-  { success: true, roomId: "X9Z2A" }
-  ```
+- **初始化同步**:
+  - 前端收到 `currentStatus` 后，结合本地时间戳 `lastActionAt` 计算流逝时间，直接跳转到最新进度。
 
-### 2.2 加入房间 (`join_room`)
+### 2.2 状态上报 (`update_status`)
 
-- **方向**: Client -> Server
-- **类型**: Request-Response (带 ACK 回调)
-- **Payload**:
-  ```typescript
-  {
-    roomId: string;
-    username: string;
-    password?: string;
-    videoMeta: { duration: number; fileSize: number }
-  }
-  ```
-- **Server 处理**:
-  1.  校验 RoomID 和密码。
-  2.  执行 `socket.join(roomId)`。
-- **Server 响应 (ACK Callback)**:
-  ```typescript
-  { success: true, roomId: "X9Z2A" }
-  ```
-- **广播策略**:
-  1.  **To Caller**: 发送 `room_joined` (含 `currentStatus: lastAction`)，用于自动同步。
-  2.  **To Room**: 发送 `user_joined`。
-
-### 2.3 状态上报 (`update_status`)
-
-- **方向**: Client -> Server
-- **触发**: 用户选择视频文件并成功加载元数据后。
-- **Payload**:
-  ```typescript
-  {
-    duration: number // 视频时长 (秒)
-    fileName: string // 文件名
-  }
-  ```
-- **Server 处理**: 更新内存中该 User 对象的属性。
-- **广播**: 向房间内所有人发送 `user_updated` 事件。
+- **Payload**: `{ duration: number, fileName: string }`
+- **用途**: 用于在成员列表中显示“红绿灯”状态（检查文件是否一致）。
 
 ---
 
-## 3. 同步引擎 (Sync Engine)
+## 3. 同步引擎 (Sync Engine) - 核心机制
 
-### 3.1 发送同步指令 (`send_sync`)
+### 3.1 权限模型
 
-- **方向**: Client -> Server
-- **触发**: 用户操作播放器 (Play/Pause/Seek)。
+- **房主 (Host)**: 唯一有权发送 `send_sync` 和 `send_heartbeat` 的用户。
+- **成员 (Guest)**: 只接收指令。本地操作（暂停/拖拽）**不会**发送给服务器，仅影响本地（允许暂时掉队）。
+
+### 3.2 动作指令 (`send_sync` / `receive_sync`)
+
+- **触发**: 房主进行 Play/Pause/Seek 操作。
+- **Payload**: `{ type: 'play'|'pause'|'seek', timestamp: number }`
+- **处理**: 成员收到后，立即执行对应动作，并校准时间。
+
+### 3.3 心跳机制 (`send_heartbeat` / `receive_heartbeat`)
+
+- **方向**: Host -> Server -> Guests
+- **频率**: 每 **5秒** 一次 (仅当房主在播放时)。
 - **Payload**:
   ```typescript
   {
-    type: 'play' | 'pause' | 'seek'
-    timestamp: number
+    timestamp: number, // 房主当前的精确时间
+    paused: boolean
   }
   ```
-- **Server 处理**:
-  1.  更新房间 `lastAction`。
-  2.  **生成系统消息**:
-      - `username`: 操作者名字 (如 "Jack")。
-      - `content`: 纯动作文本 (如 "暂停了视频" 或 "跳转到了 01:20:30")。**不再拼接用户名。**
-
-### 3.2 接收同步指令 (`receive_sync`)
-
-- **方向**: Server -> Client
-- **Client 处理**:
-  1.  开启 `isRemoteAction` 锁 (持续 1200ms)。
-  2.  操作 DOM 执行动作。
+- **Server 处理**: 更新内存中的 `lastAction`，并广播给房间内所有人。
+- **Guest 处理 (自动纠偏策略)**:
+  1.  **若 Guest 处于暂停状态**: 忽略心跳（认为是用户主动暂停查看细节）。
+  2.  **若 Guest 也在播放**:
+      - 计算误差 `diff = abs(localTime - heartbeatTime)`。
+      - 若 `diff > 2s`: **强制跳转** 到心跳时间，并弹出绿色 Toast 提示“已自动同步”。
+      - 若 `diff < 2s`: 忽略（避免频繁跳变）。
 
 ---
 
 ## 4. 即时通讯 (Chat)
 
-### 4.1 发送消息 (`send_message`)
-
-- Payload: `string`
-
-### 4.2 接收消息 (`receive_message`)
-
-- **Payload**:
-  ```typescript
-  {
-    id: string
-    type: 'text' | 'system'
-    username: string // 若为系统消息，此处为触发者名字
-    content: string // 纯文本内容
-    timestamp: number
-  }
-  ```
-- **Client 渲染**:
-  - `text`: 普通气泡。
-  - `system`: 渲染为“胶囊”样式。前端负责把 `username` 和 `content` 拼在一起显示 (e.g. `[Jack] 暂停了视频`)。
+*(保持不变，参考原有逻辑)*
 
 ---
 
-## 5. 异常与销毁
+## 5. 异常与生命周期
 
-### 5.1 断开连接 (`disconnect`)
+### 5.1 房主移交
 
-- 触发 `user_left` 广播。
-- 若房间空，立即销毁。
+- 若房主断开连接 (`disconnect`)，Server 会自动将 `hostId` 移交给列表中的下一位用户，并广播 `host_updated` 事件。
 
-### 5.2 错误反馈
+### 5.2 房间销毁 (Grace Period)
 
-- 事件: `error`
-- UI: 显示 Toast 提示。
+- 房间空置后进入 **5分钟缓刑期**，期间若有人重连则恢复，否则销毁。
 
 ---
 
-## 6. 数据流向总结图 (更新版)
+## 6. 数据流向总结图 (Host Mode)
 
 ```mermaid
 sequenceDiagram
-    participant A as User A
+    participant H as Host
     participant S as Server
-    participant B as User B
+    participant G as Guest
 
-    Note over A, S: 1. 视频加载
-    A->>S: update_status {duration: 120, fileName: "Test.mp4"}
-    S->>B: user_updated {username: "A", videoDuration: 120}
-    Note right of B: B 的列表显示 A 为绿色(已就绪)
+    Note over H, G: 1. 播放流程
+    H->>S: send_sync {type: "play", time: 10}
+    S->>G: receive_sync {type: "play", time: 10}
+    G->>G: Video Play
 
-    Note over A, S: 2. 同步播放
-    A->>S: send_sync {type: "seek", time: 50}
-    S->>B: receive_sync {type: "seek", time: 50}
-    S->>A: receive_message {type: "system", username: "A", content: "跳转到了 00:50"}
-    S->>B: receive_message {type: "system", username: "A", content: "跳转到了 00:50"}
+    Note over H, G: 2. 心跳校准 (每5秒)
+    H->>S: send_heartbeat {time: 15.5}
+    S->>G: receive_heartbeat {time: 15.5}
+    
+    alt Guest 误差 < 2s
+        G->>G: 无操作
+    else Guest 误差 > 2s (卡顿/掉队)
+        G->>G: 强制 Seek 到 15.5
+        G->>G: Toast "自动同步"
+    end
+
+    Note over H, G: 3. Guest 主动暂停
+    G->>G: Pause (不发请求)
+    H->>S: send_heartbeat {time: 20.5}
+    S->>G: receive_heartbeat {time: 20.5}
+    G->>G: 忽略心跳 (保持暂停)
+    G->>G: UI 显示 "点击追赶" 按钮
 ```

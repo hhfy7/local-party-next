@@ -9,19 +9,19 @@ export const copyToClipboard = async (text: string) => {
       // 降级方案：创建临时 input
       const textArea = document.createElement('textarea')
       textArea.value = text
-      
+
       // 避免手机上键盘弹出
       textArea.style.position = 'fixed'
       textArea.style.left = '-9999px'
       textArea.style.top = '0'
-      
+
       document.body.appendChild(textArea)
       textArea.focus()
       textArea.select()
-      
+
       const successful = document.execCommand('copy')
       document.body.removeChild(textArea)
-      
+
       if (successful) {
         toast.success('链接已复制', { icon: '🔗' })
       } else {

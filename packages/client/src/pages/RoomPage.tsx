@@ -26,7 +26,8 @@ import { MobileTabs } from '@/components/MobileTabs'
 
 export const RoomPage = () => {
   const { roomId } = useParams()
-  const { users, currentUser, socket, lastAction, lastActionAt, hostId } = useAppStore()
+  const { users, currentUser, socket, lastAction, lastActionAt, hostId } =
+    useAppStore()
 
   // UI State
   const [isSidebarOpen, setSidebarOpen] = useState(true)
@@ -138,7 +139,6 @@ export const RoomPage = () => {
         </button>
 
         <div className="relative flex h-full w-full items-center justify-center p-4 md:p-8">
-          
           {/* --- 掉队提示按钮 (仅在手动暂停掉队时显示) --- */}
           {isManualPaused && videoUrl && (
             <button
@@ -146,8 +146,8 @@ export const RoomPage = () => {
               className="absolute top-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-orange-200 bg-orange-100/90 px-3 py-1.5 text-[10px] font-bold text-orange-700 shadow-lg backdrop-blur transition-all hover:scale-105 hover:bg-orange-200 md:top-12 md:gap-2 md:px-4 md:py-2 md:text-xs"
             >
               <span className="relative flex h-1.5 w-1.5 md:h-2 md:w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 md:h-2 md:w-2 bg-orange-500"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-orange-500 md:h-2 md:w-2"></span>
               </span>
               与房主不同步 (点击追赶)
             </button>
@@ -178,11 +178,10 @@ export const RoomPage = () => {
       {/* --- 区域 B: 功能面板 (Content Panel) --- */}
       {/* 手机: 剩余高度 / PC: 固定宽度侧边栏 */}
       <div
-        className={`relative z-20 flex flex-1 min-h-0 flex-col bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] 
-        ${
+        className={`relative z-20 flex min-h-0 flex-1 flex-col bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] ${
           isSidebarOpen
-            ? 'md:flex-none md:w-80 md:translate-x-0 md:opacity-100'
-            : 'md:flex-none md:w-0 md:translate-x-20 md:overflow-hidden md:opacity-0'
+            ? 'md:w-80 md:flex-none md:translate-x-0 md:opacity-100'
+            : 'md:w-0 md:flex-none md:translate-x-20 md:overflow-hidden md:opacity-0'
         }`}
       >
         {/* === Mobile View === */}
@@ -190,7 +189,7 @@ export const RoomPage = () => {
           <MobileTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
           <div
-            className={`flex-1 min-h-0 ${
+            className={`min-h-0 flex-1 ${
               activeTab === 'chat' ? 'overflow-hidden' : 'overflow-y-auto'
             }`}
           >
