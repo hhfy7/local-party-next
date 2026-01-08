@@ -14,16 +14,18 @@ interface AppState {
   connected: boolean
   currentUser: User | null
   roomId: string | null
+  hostId: string | null
   users: User[]
   messages: ChatMessage[]
-  lastAction: SyncAction | null // 新增
+  lastAction: SyncAction | null
+  lastActionAt: number // 新增：收到最后指令的本地时间戳
 
   // Actions
   connect: () => void
   disconnect: () => void
   setCurrentUser: (user: User) => void
   setRoomInfo: (roomId: string, users: User[], history: ChatMessage[]) => void
-  setLastAction: (action: SyncAction) => void // 新增
+  setLastAction: (action: SyncAction) => void
   addUser: (user: User) => void
   removeUser: (userId: string) => void
 }
@@ -33,9 +35,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   connected: false,
   currentUser: null,
   roomId: null,
+  hostId: null,
   users: [],
   messages: [],
   lastAction: null,
+  lastActionAt: 0, // 初始化
 
   connect: () => {
     if (get().socket) return
@@ -60,11 +64,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         ) || null
       set({
         roomId: data.roomId,
+        hostId: data.hostId,
         users: data.users,
         messages: data.history,
         currentUser: me,
-        lastAction: data.currentStatus || null, // 初始化状态
+        lastAction: data.currentStatus || null,
+        lastActionAt: Date.now(), // 更新时间戳
       })
+    })
+
+    socket.on('host_updated', newHostId => {
+      set({ hostId: newHostId })
     })
 
     socket.on('user_joined', user => {
@@ -89,7 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // 监听同步事件更新 lastAction
     socket.on('receive_sync', action => {
-      set({ lastAction: action })
+      set({ lastAction: action, lastActionAt: Date.now() }) // 更新时间戳
     })
 
     set({ socket })
@@ -106,7 +116,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCurrentUser: user => set({ currentUser: user }),
   setRoomInfo: (roomId, users, history) =>
     set({ roomId, users, messages: history }),
-  setLastAction: action => set({ lastAction: action }),
+  setLastAction: action => set({ lastAction: action, lastActionAt: Date.now() }),
   addUser: user => set(state => ({ users: [...state.users, user] })),
   removeUser: userId =>
     set(state => ({ users: state.users.filter(u => u.id !== userId) })),

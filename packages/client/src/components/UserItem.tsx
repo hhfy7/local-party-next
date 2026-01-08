@@ -16,6 +16,7 @@ interface UserItemProps {
   isHost: boolean
   isMe: boolean
   hostDuration?: number
+  variant?: 'horizontal' | 'vertical'
 }
 
 export const UserItem = ({
@@ -23,6 +24,7 @@ export const UserItem = ({
   isHost,
   isMe,
   hostDuration,
+  variant = 'horizontal',
 }: UserItemProps) => {
   const [isHovered, setIsHovered] = useState(false)
   const itemRef = useRef<HTMLDivElement>(null)
@@ -75,6 +77,52 @@ export const UserItem = ({
     }
   }
 
+  if (variant === 'vertical') {
+    return (
+      <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
+        <div className="flex items-center gap-3">
+          {/* 头像/状态灯 */}
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl font-black text-white ${statusColor} shadow-md`}
+          >
+            {user.username[0].toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-900">{user.username}</span>
+              {isHost && (
+                <span className="rounded-md bg-yellow-100 px-1.5 py-0.5 text-[10px] font-bold text-yellow-700">
+                  HOST
+                </span>
+              )}
+              {isMe && (
+                <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                  ME
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <span>{statusText}</span>
+              {user.videoDuration && (
+                <>
+                  <span>•</span>
+                  <span className="font-mono">
+                    {formatDuration(user.videoDuration)}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        {user.fileName && (
+          <div className="max-w-[100px] truncate rounded-lg bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-500">
+            {user.fileName}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <>
       <div
@@ -100,7 +148,7 @@ export const UserItem = ({
         {statusIcon}
       </div>
 
-      {/* Portal Tooltip */}
+      {/* Portal Tooltip (只在 Horizontal 模式下需要，Vertical 模式直接显示了信息) */}
       <PortalTooltip
         isVisible={isHovered && !!user.videoDuration}
         targetRect={rect}

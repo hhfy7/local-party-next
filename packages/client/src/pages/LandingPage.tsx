@@ -147,10 +147,10 @@ export const LandingPage = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 text-gray-900 selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="flex min-h-screen flex-col items-center bg-gray-50 px-4 pt-12 text-gray-900 selection:bg-indigo-100 selection:text-indigo-900 md:justify-center md:pt-0">
       {/* 顶部标题区 */}
       <div
-        className={`mb-12 text-center transition-all duration-500 ${view === 'menu' ? 'translate-y-0 opacity-100' : 'hidden -translate-y-4 opacity-0'}`}
+        className={`mb-8 text-center transition-all duration-500 md:mb-12 ${view === 'menu' ? 'translate-y-0 opacity-100' : 'hidden -translate-y-4 opacity-0'}`}
       >
         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-white shadow-xl shadow-indigo-100/50">
           <svg
@@ -216,39 +216,45 @@ export const LandingPage = () => {
               </div>
             )}
 
-            <div className="flex flex-col gap-6 md:flex-row">
+            <div className="grid w-full grid-cols-2 gap-4 px-2 md:flex md:w-auto md:gap-6 md:px-0">
               <button
                 onClick={() => setView('create')}
-                className="group relative flex h-72 w-full max-w-sm flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-100 md:w-80"
+                className="group relative flex h-auto min-h-[180px] w-full flex-col items-center justify-center overflow-hidden rounded-2xl bg-white p-4 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-100 md:h-72 md:w-80 md:rounded-3xl md:p-8"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-indigo-50 transition-transform duration-300 group-hover:scale-110">
-                  <IconCreate />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 transition-transform duration-300 group-hover:scale-110 md:h-24 md:w-24">
+                  <div className="scale-75 md:scale-100">
+                    <IconCreate />
+                  </div>
                 </div>
-                <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
+                <h3 className="relative mt-4 text-lg font-bold text-gray-900 md:mt-8 md:text-2xl">
                   创建房间
                 </h3>
-                <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
+                <p className="relative mt-2 text-center text-xs leading-relaxed text-gray-500 md:text-sm">
                   新建一个放映室
-                  <br />
+                  <br className="hidden md:block" />
+                  <span className="md:hidden"> </span>
                   生成邀请链接
                 </p>
               </button>
 
               <button
                 onClick={() => setView('join')}
-                className="group relative flex h-72 w-full max-w-sm flex-col items-center justify-center overflow-hidden rounded-3xl bg-white p-8 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-100 md:w-80"
+                className="group relative flex h-auto min-h-[180px] w-full flex-col items-center justify-center overflow-hidden rounded-2xl bg-white p-4 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-100 md:h-72 md:w-80 md:rounded-3xl md:p-8"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50 transition-transform duration-300 group-hover:scale-110">
-                  <IconJoin />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 transition-transform duration-300 group-hover:scale-110 md:h-24 md:w-24">
+                  <div className="scale-75 md:scale-100">
+                    <IconJoin />
+                  </div>
                 </div>
-                <h3 className="relative mt-8 text-2xl font-bold text-gray-900">
+                <h3 className="relative mt-4 text-lg font-bold text-gray-900 md:mt-8 md:text-2xl">
                   加入房间
                 </h3>
-                <p className="relative mt-2 text-center text-sm leading-relaxed text-gray-500">
+                <p className="relative mt-2 text-center text-xs leading-relaxed text-gray-500 md:text-sm">
                   输入房间代码
-                  <br />
+                  <br className="hidden md:block" />
+                  <span className="md:hidden"> </span>
                   加入朋友的聚会
                 </p>
               </button>

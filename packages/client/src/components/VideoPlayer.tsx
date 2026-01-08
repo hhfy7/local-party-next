@@ -115,7 +115,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
 
         {/* 透明遮罩层 */}
         <div
-          className="absolute top-0 right-0 left-0 z-10 flex h-[85%] cursor-pointer items-center justify-center"
+          className="absolute top-0 right-0 left-0 z-10 flex h-[70%] cursor-pointer items-center justify-center"
           onClick={handleOverlayClick}
         >
           {/* 点击反馈图标 (绝对居中) */}

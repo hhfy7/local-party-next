@@ -13,12 +13,15 @@ export const useFileHandler = (roomId?: string) => {
 
   // 1. 初始化检查缓存
   useEffect(() => {
-    if (roomId && !videoUrl) {
+    if (roomId) {
+      // 每次 roomId 变化都尝试读取，不依赖 videoUrl
+      console.log('[FileHandler] Checking cache for room:', roomId)
       getVideoHandle(roomId).then(handle => {
+        console.log('[FileHandler] Cache result:', handle ? 'Found' : 'Empty')
         if (handle) setCachedFileHandle(handle)
       })
     }
-  }, [roomId, videoUrl])
+  }, [roomId])
 
   // Helper: 加载文件对象
   const loadVideo = (file: File) => {
@@ -45,6 +48,14 @@ export const useFileHandler = (roomId?: string) => {
         loadVideo(file)
       } else {
         // 降级方案
+        console.warn(
+          '[FileHandler] File System Access API not available. Fallback to input. Cache restoration will NOT work.',
+        )
+        if (!window.isSecureContext) {
+          console.warn(
+            '[FileHandler] Reason: Insecure context (HTTP). Please use HTTPS or localhost.',
+          )
+        }
         document.getElementById('hidden-file-input')?.click()
       }
     } catch (err) {

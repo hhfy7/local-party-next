@@ -28,19 +28,28 @@ export interface SyncAction {
   reqId?: string
 }
 
+// 心跳载荷 (新增)
+export interface HeartbeatPayload {
+  timestamp: number
+  paused: boolean
+}
+
 // Socket 服务端事件 (Server -> Client)
 export interface ServerToClientEvents {
   room_joined: (data: {
     roomId: string
+    hostId: string
     history: ChatMessage[]
     users: User[]
     currentStatus?: SyncAction
   }) => void
   user_joined: (user: User) => void
   user_left: (userId: string) => void
-  user_updated: (user: User) => void // 新增
+  user_updated: (user: User) => void
+  host_updated: (newHostId: string) => void
   receive_message: (msg: ChatMessage) => void
   receive_sync: (action: SyncAction, user: string) => void
+  receive_heartbeat: (payload: HeartbeatPayload) => void // 新增
   video_warning: (msg: string) => void
   error: (msg: string) => void
 }
@@ -75,7 +84,8 @@ export interface ClientToServerEvents {
   ) => void
   send_message: (content: string) => void
   send_sync: (action: SyncAction) => void
-  update_status: (data: { duration: number; fileName: string }) => void // 新增
+  send_heartbeat: (payload: HeartbeatPayload) => void // 新增
+  update_status: (data: { duration: number; fileName: string }) => void
 }
 
 export interface RoomState {

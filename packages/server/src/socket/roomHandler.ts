@@ -55,6 +55,7 @@ export const registerRoomHandlers = (
 
       socket.emit('room_joined', {
         roomId,
+        hostId: newRoom.hostId, // Sync hostId
         history: [],
         users: [newUser],
       })
@@ -71,6 +72,11 @@ export const registerRoomHandlers = (
       const room = roomStore.getRoom(roomId)
 
       if (!room) {
+        console.warn(
+          `[Join Failed] Room not found: "${roomId}". Available rooms: [${Object.keys(
+            roomStore.getAllRooms(),
+          ).join(', ')}]`,
+        )
         if (callback) callback({ success: false, error: '房间不存在' })
         return
       }
@@ -108,6 +114,7 @@ export const registerRoomHandlers = (
       // 1. 告诉自己
       socket.emit('room_joined', {
         roomId,
+        hostId: room.hostId, // Sync hostId
         history: room.messages,
         users: room.users,
         currentStatus: room.lastAction,
@@ -137,11 +144,42 @@ export const registerRoomHandlers = (
     }
   })
 
-  // --- 视频同步指令 ---
+  // --- 心跳同步 (Host Only) ---
+  socket.on('send_heartbeat', (payload) => {
+    const allRooms = roomStore.getAllRooms()
+    for (const [roomId, room] of Object.entries(allRooms)) {
+      if (room.hostId === socket.id) {
+        // 更新服务端的 lastAction，确保新加入的人拿到的是最新的
+        if (room.lastAction) {
+           room.lastAction.timestamp = payload.timestamp
+           room.lastAction.type = payload.paused ? 'pause' : 'play'
+        } else {
+           // 如果之前没有任何动作，初始化一个
+           room.lastAction = {
+             type: payload.paused ? 'pause' : 'play',
+             timestamp: payload.timestamp
+           }
+        }
+        
+        // 广播给房间里其他人
+        socket.to(roomId).emit('receive_heartbeat', payload)
+        break
+      }
+    }
+  })
+
+  // --- 视频同步指令 (仅限房主) ---
   socket.on('send_sync', (action: SyncAction) => {
     const allRooms = roomStore.getAllRooms()
     for (const [roomId, room] of Object.entries(allRooms)) {
       if (room.users.some(u => u.id === socket.id)) {
+        // [权限校验]
+        if (room.hostId !== socket.id) {
+          console.warn(`[Sync Denied] User ${socket.id} is not host.`)
+          socket.emit('error', '只有房主可以控制视频进度')
+          return
+        }
+
         const user = room.users.find(u => u.id === socket.id)
         socket.to(roomId).emit('receive_sync', action, user?.username || '未知')
 
@@ -211,10 +249,31 @@ export const registerRoomHandlers = (
       const userIndex = room.users.findIndex(u => u.id === socket.id)
       if (userIndex !== -1) {
         const username = room.users[userIndex].username
+        const isHost = room.hostId === socket.id // 检查是否是房主
+
         room.users.splice(userIndex, 1)
         io.to(roomId).emit('user_left', socket.id)
 
         console.log(`[Left] ${username} left Room:${roomId}`)
+
+        // [房主移交逻辑]
+        if (isHost && room.users.length > 0) {
+          const newHost = room.users[0]
+          room.hostId = newHost.id
+          io.to(roomId).emit('host_updated', newHost.id)
+
+          // 发个系统消息通知大家
+          const sysMsg = {
+            id: Date.now().toString(),
+            type: 'system' as const,
+            userId: 'system',
+            username: 'System',
+            content: `房主已移交给 ${newHost.username}`,
+            timestamp: Date.now(),
+          }
+          io.to(roomId).emit('receive_message', sysMsg)
+          console.log(`[Host Transfer] New host: ${newHost.username}`)
+        }
 
         if (room.users.length === 0) {
           // 不再立即删除，进入 5 分钟缓刑期

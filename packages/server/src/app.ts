@@ -1,8 +1,11 @@
 import express from 'express'
-import { createServer } from 'http'
+import { createServer as createHttpServer } from 'http'
+import { createServer as createHttpsServer } from 'https' // Import HTTPS
 import { Server } from 'socket.io'
 import cors from 'cors'
 import * as dotenv from 'dotenv'
+import fs from 'fs'
+import path from 'path'
 import {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -13,10 +16,33 @@ dotenv.config()
 const app = express()
 app.use(cors())
 
-const httpServer = createServer(app)
+// 尝试加载 SSL 证书 (从项目根目录的 keys 文件夹)
+const rootDir = path.resolve(__dirname, '../../../') 
+const keyPath = path.join(rootDir, 'keys/key.pem')
+const certPath = path.join(rootDir, 'keys/cert.pem')
+
+console.log('[Server] Checking for keys at:', keyPath) // Debug Log
+
+
+let httpServer
+let protocol = 'http'
+
+if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+  console.log('[Server] Loading SSL certificates...')
+  const options = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  }
+  httpServer = createHttpsServer(options, app)
+  protocol = 'https'
+} else {
+  console.log('[Server] No SSL certificates found, using HTTP.')
+  httpServer = createHttpServer(app)
+}
+
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: '*', // 开发环境允许所有来源
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 })
@@ -35,5 +61,5 @@ io.on('connection', socket => {
 })
 
 httpServer.listen(PORT, () => {
-  console.log(`Server 正在运行在 http://localhost:${PORT}`)
+  console.log(`Server 正在运行在 ${protocol}://localhost:${PORT}`)
 })

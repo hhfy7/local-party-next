@@ -25,6 +25,8 @@ export const useRoomLogic = (roomId?: string) => {
     (username: string, isAuto = false) => {
       if (!socket || !roomId) return
 
+      console.log(`[Client] Joining room: "${roomId}" with username: "${username}"`)
+
       socket.emit(
         'join_room',
         {
@@ -45,11 +47,21 @@ export const useRoomLogic = (roomId?: string) => {
               console.warn('[Auto Join Failed]', res.error)
               if (res.error === '房间不存在') {
                 setErrorMsg('房间不存在')
+                if (!import.meta.env.PROD) {
+                  toast('开发环境提示: 后端可能重启了，房间数据已丢失。', {
+                    icon: '🐛',
+                  })
+                }
               }
             } else {
               toast.error('加入失败: ' + (res.error || '未知错误'))
               if (res.error === '房间不存在') {
                 setErrorMsg('房间不存在')
+                if (!import.meta.env.PROD) {
+                  toast('开发环境提示: 后端可能重启了，房间数据已丢失。', {
+                    icon: '🐛',
+                  })
+                }
               }
             }
           }

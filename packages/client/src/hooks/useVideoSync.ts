@@ -1,35 +1,87 @@
-import { RefObject, useCallback, useEffect, useRef } from 'react'
-import { SyncAction } from '@local-party/shared/src/types'
+import { RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import { SyncAction, HeartbeatPayload } from '@local-party/shared/src/types'
 import { Socket } from 'socket.io-client'
+import toast from 'react-hot-toast'
 
 export const useVideoSync = (
   socket: Socket | null,
   videoRef: RefObject<HTMLVideoElement | null>,
   lastAction: SyncAction | null,
-  videoUrl: string | null, // 视频 URL，用于侦测视频变化
+  videoUrl: string | null,
+  isHost: boolean,
+  lastActionAt: number,
 ) => {
   const isRemoteAction = useRef(false)
   const hasSyncedInitialState = useRef(false)
   const seekDebounceTimer = useRef<number | null>(null)
-  const isSeekingRef = useRef(false) // 新增：正在跳转的锁
+  const isSeekingRef = useRef(false)
+  
+  // 新增：手动暂停状态检测
+  const [isManualPaused, setIsManualPaused] = useState(false)
+
+  // 定期检测是否处于“主动掉队”状态 (房主 Play，我 Pause)
+  useEffect(() => {
+    if (!videoRef.current || isHost) return
+    
+    const checkStatus = () => {
+      const video = videoRef.current
+      if (!video) return
+      // 房主在放，我停了 -> 显示追赶按钮
+      const isRoomPlaying = lastAction?.type === 'play'
+      const isLocalPaused = video.paused
+      setIsManualPaused(!!(isRoomPlaying && isLocalPaused))
+    }
+    
+    const timer = setInterval(checkStatus, 1000)
+    videoRef.current.addEventListener('pause', checkStatus)
+    videoRef.current.addEventListener('play', checkStatus)
+    
+    return () => {
+      clearInterval(timer)
+      if (videoRef.current) {
+        videoRef.current.removeEventListener('pause', checkStatus)
+        videoRef.current.removeEventListener('play', checkStatus)
+      }
+    }
+  }, [lastAction, isHost, videoRef])
 
   // 当视频文件变化时，重置初始同步状态
   useEffect(() => {
     hasSyncedInitialState.current = false
   }, [videoUrl])
 
-  // 1. 监听后端同步指令
+  // --- 1. [Host] 房主心跳发送器 ---
+  useEffect(() => {
+    if (!socket || !isHost || !videoUrl) return
+
+    const sendHeartbeat = () => {
+      const video = videoRef.current
+      if (!video || video.paused) return // 暂停时不发心跳，节省流量
+
+      const payload: HeartbeatPayload = {
+        timestamp: video.currentTime,
+        paused: video.paused,
+      }
+      socket.emit('send_heartbeat', payload)
+    }
+
+    // 每 5 秒发送一次心跳
+    const timer = setInterval(sendHeartbeat, 5000)
+    return () => clearInterval(timer)
+  }, [socket, isHost, videoUrl, videoRef])
+
+  // --- 2. [Guest] 监听心跳与同步指令 ---
   useEffect(() => {
     if (!socket) return
 
+    // 处理常规指令 (Play/Pause/Seek)
     const handleReceiveSync = (action: SyncAction) => {
       const video = videoRef.current
       if (!video) return
 
-      // 标记为远程操作，防止触发 sendSync
       isRemoteAction.current = true
 
-      // 时间同步：只有当误差 > 0.5s 时才强制校准，避免卡顿
+      // 时间同步
       if (Math.abs(video.currentTime - action.timestamp) > 0.5) {
         video.currentTime = action.timestamp
       }
@@ -40,37 +92,86 @@ export const useVideoSync = (
       } else if (action.type === 'pause') {
         video.pause()
       }
-      // seek 只需要设置 currentTime，上面已经处理了
 
-      // 1.2s 后释放锁 (给予足够的时间让 seek/play 完成)
       setTimeout(() => {
         isRemoteAction.current = false
       }, 1200)
     }
 
+    // 处理心跳 (自动微调)
+    const handleHeartbeat = (payload: HeartbeatPayload) => {
+      const video = videoRef.current
+      if (!video || isHost) return // 房主忽略心跳
+
+      // 策略：如果我暂停了，说明我可能在手动操作，忽略自动同步
+      if (video.paused) return
+
+      // 如果我也在播放，计算误差
+      const diff = Math.abs(video.currentTime - payload.timestamp)
+
+      // 误差 > 2秒 -> 强制拉回
+      if (diff > 2.0) {
+        console.log(`[AutoSync] Diff: ${diff.toFixed(2)}s. Syncing to ${payload.timestamp}`)
+        isRemoteAction.current = true
+        video.currentTime = payload.timestamp
+        
+        // 绿色 Toast 提示
+        toast.success('已自动同步房主进度', {
+          id: 'auto-sync',
+          duration: 2000,
+          style: {
+            background: '#ecfdf5', // green-50
+            color: '#047857', // green-700
+            border: '1px solid #a7f3d0', // green-200
+            fontSize: '12px',
+            fontWeight: 'bold',
+          },
+          icon: '🔄'
+        })
+
+        setTimeout(() => {
+          isRemoteAction.current = false
+        }, 1000)
+      }
+    }
+
     socket.on('receive_sync', handleReceiveSync)
+    socket.on('receive_heartbeat', handleHeartbeat)
+
     return () => {
       socket.off('receive_sync', handleReceiveSync)
+      socket.off('receive_heartbeat', handleHeartbeat)
     }
-  }, [socket, videoRef])
+  }, [socket, videoRef, isHost])
 
-  // 2. 处理文件加载后的初始同步
+  // --- 3. 初始同步 (Handle Refresh/Join) ---
   const handleVideoLoaded = () => {
     const video = videoRef.current
-
-    // 如果没有视频、没有初始状态，或者已经同步过了，直接跳过
     if (!video || !lastAction || hasSyncedInitialState.current) return
 
     console.log('[Initial Sync]', lastAction)
     hasSyncedInitialState.current = true
-    isRemoteAction.current = true // 初始同步也算是远程操作
+    isRemoteAction.current = true
 
-    // 强制同步到房间当前状态
-    video.currentTime = lastAction.timestamp
+    // 初始同步：加上时间补偿
+    let targetTime = lastAction.timestamp
+    if (lastAction.type === 'play') {
+      const elapsed = (Date.now() - lastActionAt) / 1000
+      // 防御性检查：如果计算出的 elapsed 极大（比如电脑休眠了），可能导致 targetTime 溢出
+      // 但一般 lastActionAt 是 Date.now() 初始化，所以通常是准的
+      targetTime += elapsed
+    }
+    
+    // 防御：不要超过视频总时长
+    if (video.duration && targetTime > video.duration) {
+        targetTime = video.duration
+    }
+
+    video.currentTime = targetTime
+
     if (lastAction.type === 'play') {
       video.play().catch(e => {
         console.warn('Autoplay prevented:', e)
-        // 自动播放失败是正常的，通常需要用户交互
       })
     } else {
       video.pause()
@@ -81,53 +182,63 @@ export const useVideoSync = (
     }, 1000)
   }
 
-  // 3. 发送指令 (核心逻辑)
+  // --- 4. 发送指令 (Client -> Server) ---
   const sendSync = useCallback(
     (type: SyncAction['type']) => {
       const video = videoRef.current
-
-      // 卫语句：
-      // 1. 视频未加载
-      // 2. Socket 未连接
-      // 3. 正在响应远程指令 (避免死循环)
       if (!video || !socket || isRemoteAction.current) return
 
-      // 4. [新增] 正在跳转中 (抑制中间的 play/pause)
-      // 如果是 seeking 状态下触发了 play/pause，忽略之
+      // 权限拦截 (Plan C: 允许本地操作，不发 socket)
+      if (!isHost) return
+
       if (isSeekingRef.current && type !== 'seek') return
 
       socket.emit('send_sync', { type, timestamp: video.currentTime })
     },
-    [socket, videoRef],
+    [socket, videoRef, isHost],
   )
 
-  // 4. 绑定 DOM 事件监听
+  // 手动追赶 (保留给暂停状态的用户用)
+  const triggerResync = useCallback(() => {
+    const video = videoRef.current
+    if (!video || !lastAction) return
+
+    isRemoteAction.current = true
+    
+    let targetTime = lastAction.timestamp
+    if (lastAction.type === 'play') {
+      const elapsed = (Date.now() - lastActionAt) / 1000
+      targetTime += elapsed
+    }
+    
+    video.currentTime = targetTime
+    if (lastAction.type === 'play') {
+      video.play().catch(() => {})
+    } else {
+      video.pause()
+    }
+    
+    setTimeout(() => {
+      isRemoteAction.current = false
+    }, 1000)
+    toast.success('已同步到房主进度')
+  }, [lastAction, lastActionAt, videoRef])
+
+  // --- 5. DOM 监听 ---
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    const onSeeking = () => {
-      isSeekingRef.current = true
-    }
-
+    const onSeeking = () => { isSeekingRef.current = true }
     const onPlay = () => sendSync('play')
     const onPause = () => sendSync('pause')
-
+    
     const onSeeked = () => {
-      // 防抖：只有当用户停止拖动（不再频繁触发 seeked）后才发送
-      if (seekDebounceTimer.current) {
-        clearTimeout(seekDebounceTimer.current)
-      }
-
+      if (seekDebounceTimer.current) clearTimeout(seekDebounceTimer.current)
       seekDebounceTimer.current = window.setTimeout(() => {
-        // Seek 结束，发送状态
         sendSync('seek')
-
-        // 发送后延迟释放锁，防止后续自动触发的 play/pause
-        setTimeout(() => {
-          isSeekingRef.current = false
-        }, 500)
-      }, 600) // 600ms 防抖，确保是“松手”后的最后一次
+        setTimeout(() => { isSeekingRef.current = false }, 500)
+      }, 600)
     }
 
     video.addEventListener('seeking', onSeeking)
@@ -142,7 +253,7 @@ export const useVideoSync = (
       video.removeEventListener('seeked', onSeeked)
       if (seekDebounceTimer.current) clearTimeout(seekDebounceTimer.current)
     }
-  }, [videoUrl, sendSync, videoRef]) // 当 videoUrl 变化时重新绑定
+  }, [videoUrl, sendSync, videoRef])
 
-  return { handleVideoLoaded }
+  return { handleVideoLoaded, triggerResync, isManualPaused }
 }
