@@ -1,5 +1,8 @@
 // 生产环境: 使用当前域名 (Nginx 反代)
-// 开发环境: 使用 VITE_API_URL 或 localhost:4000 同一个 ip 下面的地址去找 ws 服务器
+// 开发环境: 动态获取当前访问的 hostname，方便移动端在同网络下访问
+const DEV_BACKEND_PORT = 4000
+const devFallbackUrl = `${window.location.protocol}//${window.location.hostname}:${DEV_BACKEND_PORT}`
+
 export const SOCKET_URL = import.meta.env.PROD
   ? window.location.origin
-  : import.meta.env.VITE_API_URL || 'https://192.168.31.24:4000'
+  : import.meta.env.VITE_API_URL || devFallbackUrl
