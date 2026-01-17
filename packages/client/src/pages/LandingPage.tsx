@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/stores/useAppStore'
-import { getLastRoom, clearLastRoom, saveLastRoom } from '@/utils/storage'
+import {
+  getLastRoom,
+  clearLastRoom,
+  saveLastRoom,
+  getNickname,
+  saveNickname,
+} from '@/utils/storage'
 import toast from 'react-hot-toast'
 
 // 图标组件
@@ -77,7 +83,7 @@ export const LandingPage = () => {
   const [lastRoom, setLastRoom] = useState(() => getLastRoom())
 
   // 表单状态
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState(() => getNickname() || '')
   const [roomName, setRoomName] = useState('')
   const [targetRoomId, setTargetRoomId] = useState('')
   const [password, setPassword] = useState('')
@@ -103,6 +109,7 @@ export const LandingPage = () => {
       (res: { success: boolean; roomId?: string; error?: string }) => {
         if (res.success && res.roomId) {
           saveLastRoom(res.roomId)
+          saveNickname(username) // 保存昵称
           toast.success('房间创建成功！')
           navigate(`/room/${res.roomId}`)
         } else {
@@ -130,6 +137,7 @@ export const LandingPage = () => {
       (res: { success: boolean; roomId?: string; error?: string }) => {
         if (res.success && res.roomId) {
           saveLastRoom(res.roomId)
+          saveNickname(username) // 保存昵称
           toast.success('加入成功！')
           navigate(`/room/${res.roomId}`)
         } else {

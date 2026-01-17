@@ -17,6 +17,7 @@ interface UserItemProps {
   isMe: boolean
   hostDuration?: number
   variant?: 'horizontal' | 'vertical'
+  transferStatus?: 'pending' | 'completed' | null
 }
 
 export const UserItem = ({
@@ -25,6 +26,7 @@ export const UserItem = ({
   isMe,
   hostDuration,
   variant = 'horizontal',
+  transferStatus,
 }: UserItemProps) => {
   const [isHovered, setIsHovered] = useState(false)
   const itemRef = useRef<HTMLDivElement>(null)
@@ -42,7 +44,50 @@ export const UserItem = ({
   let statusIcon = null
   let statusText = '等待选择'
 
-  if (user.videoDuration) {
+  // P2P 传输状态覆盖
+  if (transferStatus === 'pending') {
+    statusColor = 'bg-blue-400'
+    statusText = '接收中...'
+    statusIcon = (
+      <svg
+        className="ml-1 h-3 w-3 animate-spin text-blue-500"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        ></circle>
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+    )
+  } else if (transferStatus === 'completed') {
+    statusColor = 'bg-green-500'
+    statusText = '已接收'
+    statusIcon = (
+      <svg
+        className="ml-1 h-3 w-3 text-green-500"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={3}
+          d="M5 13l4 4L19 7"
+        />
+      </svg>
+    )
+  } else if (user.videoDuration) {
     if (!hostDuration && !isHost) {
       statusColor = 'bg-emerald-400'
       statusText = '已就绪'

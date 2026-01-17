@@ -52,6 +52,23 @@ export interface ServerToClientEvents {
   receive_heartbeat: (payload: HeartbeatPayload) => void // 新增
   video_warning: (msg: string) => void
   error: (msg: string) => void
+
+  // P2P视频分享
+  receive_transfer_offer: (data: {
+    fromUser: User
+    fileMeta: FileTransferMetadata
+    offer: RTCSessionDescriptionInit // Added offer
+  }) => void
+  transfer_offer_cancelled: (transferId: string) => void
+  transfer_accepted: (
+    transferId: string,
+    answer: RTCSessionDescriptionInit,
+  ) => void
+  transfer_rejected: (transferId: string) => void
+  ice_candidate: (candidate: RTCIceCandidateInit, transferId: string) => void
+  transfer_progress: (progress: FileTransferProgress) => void
+  transfer_completed: (transferId: string) => void
+  transfer_failed: (transferId: string, reason: string) => void
 }
 
 // Socket 客户端事件 (Client -> Server)
@@ -86,6 +103,26 @@ export interface ClientToServerEvents {
   send_sync: (action: SyncAction) => void
   send_heartbeat: (payload: HeartbeatPayload) => void // 新增
   update_status: (data: { duration: number; fileName: string }) => void
+
+  // P2P视频分享
+  send_transfer_offer: (
+    transferId: string,
+    offer: RTCSessionDescriptionInit,
+    fileInfo?: Partial<FileTransferMetadata>,
+  ) => void
+  cancel_transfer_offer: (transferId: string) => void
+  accept_transfer: (
+    transferId: string,
+    answer: RTCSessionDescriptionInit,
+  ) => void
+  reject_transfer: (transferId: string) => void
+  send_ice_candidate: (
+    candidate: RTCIceCandidateInit,
+    transferId: string,
+  ) => void
+  transfer_progress_update: (progress: FileTransferProgress) => void
+  transfer_completed: (transferId: string) => void
+  transfer_failed: (transferId: string, reason: string) => void
 }
 
 export interface RoomState {
@@ -97,4 +134,35 @@ export interface RoomState {
   videoMeta: VideoMeta
   messages: ChatMessage[]
   lastAction?: SyncAction
+}
+
+// WebRTC 信令相关
+export interface RTCSessionDescriptionInit {
+  type: 'offer' | 'answer'
+  sdp: string
+}
+
+export interface RTCIceCandidateInit {
+  candidate?: string
+  sdpMid?: string
+  sdpMLineIndex?: number
+}
+
+// 文件传输元数据
+export interface FileTransferMetadata {
+  fileName: string
+  fileSize: number
+  fileType: string
+  senderId: string
+  senderName: string
+  transferId: string
+  roomId: string // 验证传输在正确房间内
+}
+
+// 传输进度
+export interface FileTransferProgress {
+  transferId: string
+  bytesTransferred: number
+  totalBytes: number
+  percentage: number
 }

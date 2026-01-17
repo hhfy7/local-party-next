@@ -21,27 +21,24 @@ export const useVideoSync = (
 
   // 定期检测是否处于“主动掉队”状态 (房主 Play，我 Pause)
   useEffect(() => {
-    if (!videoRef.current || isHost) return
+    const videoEl = videoRef.current
+    if (!videoEl || isHost) return
 
     const checkStatus = () => {
-      const video = videoRef.current
-      if (!video) return
       // 房主在放，我停了 -> 显示追赶按钮
       const isRoomPlaying = lastAction?.type === 'play'
-      const isLocalPaused = video.paused
+      const isLocalPaused = videoEl.paused
       setIsManualPaused(!!(isRoomPlaying && isLocalPaused))
     }
 
     const timer = setInterval(checkStatus, 1000)
-    videoRef.current.addEventListener('pause', checkStatus)
-    videoRef.current.addEventListener('play', checkStatus)
+    videoEl.addEventListener('pause', checkStatus)
+    videoEl.addEventListener('play', checkStatus)
 
     return () => {
       clearInterval(timer)
-      if (videoRef.current) {
-        videoRef.current.removeEventListener('pause', checkStatus)
-        videoRef.current.removeEventListener('play', checkStatus)
-      }
+      videoEl.removeEventListener('pause', checkStatus)
+      videoEl.removeEventListener('play', checkStatus)
     }
   }, [lastAction, isHost, videoRef])
 

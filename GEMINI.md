@@ -93,7 +93,9 @@ graph TD
   - **Toast**: 全局使用 `react-hot-toast`。
   - **动画**: 使用 `cubic-bezier` 实现非线性弹跳效果。
 
-## 代码生成只是必须使用 pnpm lint 来解决出来的问题
+## 约束
+
+最后必须使用 pnpm lint 来校验并且解决出现的问题
 
 ---
 

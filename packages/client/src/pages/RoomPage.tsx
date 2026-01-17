@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../stores/useAppStore'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { ChatPanel } from '@/components/ChatPanel'
@@ -11,6 +11,9 @@ import { copyToClipboard } from '@/utils/clipboard'
 import { useRoomLogic } from '../hooks/useRoomLogic'
 import { useFileHandler } from '../hooks/useFileHandler'
 import { useVideoSync } from '../hooks/useVideoSync'
+import { useP2PManager } from '../hooks/useP2PManager'
+
+import type { User, FileTransferMetadata } from '@local-party/shared/src/types'
 
 // Components
 import { JoinModal } from '@/components/JoinModal'
@@ -23,11 +26,13 @@ import { UserItem } from '@/components/UserItem'
 import { VideoEmptyState } from '@/components/VideoEmptyState'
 import { RoomInfoPanel } from '@/components/RoomInfoPanel'
 import { MobileTabs } from '@/components/MobileTabs'
+import { ShareDialog } from '@/components/ShareDialog'
+import { TransferConfirmModal } from '@/components/TransferConfirmModal'
+import { TransferProgress } from '@/components/TransferProgress'
 
 export const RoomPage = () => {
-  const { roomId } = useParams()
-  const { users, currentUser, socket, lastAction, lastActionAt, hostId } =
-    useAppStore()
+  const { roomId: paramRoomId } = useParams<{ roomId: string }>()
+  const navigate = useNavigate()
 
   // UI State
   const [isSidebarOpen, setSidebarOpen] = useState(true)
@@ -35,25 +40,80 @@ export const RoomPage = () => {
   const [tempName, setTempName] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  // P2P UI State
+  const [isP2PVideo, setIsP2PVideo] = useState(false)
+
   // Mobile UI State
   const [activeTab, setActiveTab] = useState<'chat' | 'users' | 'info'>('chat')
 
+  // 从 Store 获取全局状态
+  const {
+    currentUser,
+    socket,
+    roomId,
+    users,
+    hostId,
+    lastAction,
+    lastActionAt,
+  } = useAppStore()
+
   const isHost = currentUser?.id === hostId
 
-  // 1. 房间逻辑
-  const { isAutoJoining, errorMsg, handleJoin, handleCreate, navigate } =
-    useRoomLogic(roomId)
+  // 房间业务逻辑
+  const { errorMsg, isAutoJoining, handleJoin, handleCreate } =
+    useRoomLogic(paramRoomId)
 
-  // 2. 文件逻辑
+  // --- File Handler ---
   const {
-    videoUrl,
     cachedFileHandle,
-    pickFile,
-    restoreCachedVideo,
+    fileObject,
     handleInputSelect,
-  } = useFileHandler(roomId)
+    restoreCachedVideo,
+    pickFile,
+    videoUrl,
+    setVideoFile,
+  } = useFileHandler(roomId || undefined)
 
-  // 3. 同步逻辑 (现在集成了心跳和手动暂停检测)
+  // --- P2P Manager ---
+  // 将 P2P 逻辑完全委托给 useP2PManager
+  const p2p = useP2PManager(setVideoFile, setIsP2PVideo)
+
+  // Helper: 保存文件选择器
+  const showSaveFilePicker = async (file: File) => {
+    try {
+      if ('showSaveFilePicker' in window) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: file.name,
+          types: [
+            {
+              description: 'Video File',
+              accept: { [file.type]: ['.mp4', '.mkv', '.webm'] },
+            },
+          ],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(file)
+        await writable.close()
+        toast.success('文件导出成功')
+      } else {
+        // Fallback
+        const url = URL.createObjectURL(file)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = file.name
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Save failed:', err)
+        toast.error('保存失败')
+      }
+    }
+  }
+
+  // --- 同步逻辑 ---
   const { handleVideoLoaded, triggerResync, isManualPaused } = useVideoSync(
     socket,
     videoRef,
@@ -84,10 +144,10 @@ export const RoomPage = () => {
 
   // --- Render ---
 
-  if (errorMsg === '房间不存在' && roomId) {
+  if (errorMsg === '房间不存在' && paramRoomId) {
     return (
       <RoomNotFoundScreen
-        roomId={roomId}
+        roomId={paramRoomId}
         onBack={() => navigate('/')}
         onCreateNew={handleCreate}
       />
@@ -97,18 +157,127 @@ export const RoomPage = () => {
   if (errorMsg)
     return <ErrorScreen message={errorMsg} onBack={() => navigate('/')} />
   if (isAutoJoining) return <LoadingScreen />
-  if (!currentUser && roomId)
-    return <JoinModal roomId={roomId} onJoin={name => handleJoin(name)} />
+  if (!currentUser && paramRoomId)
+    return <JoinModal roomId={paramRoomId} onJoin={name => handleJoin(name)} />
 
   const bgColor = videoUrl ? 'bg-gray-900' : 'bg-gray-50'
   const leftPanelBg = videoUrl ? 'bg-black' : 'bg-transparent'
+
+  const renderDesktopNameEditor = () => {
+    if (isEditingName) {
+      return (
+        <div className="animate-fade-in flex items-center gap-2 rounded-2xl border border-indigo-100 bg-white p-1.5 shadow-lg ring-2 shadow-indigo-50 ring-indigo-50">
+          <input
+            autoFocus
+            maxLength={12}
+            className="flex-1 border-0 bg-transparent px-3 py-2 text-sm font-bold text-gray-900 outline-none placeholder:font-normal focus:ring-0"
+            value={tempName}
+            onChange={e => setTempName(e.target.value)}
+            placeholder="新昵称"
+            onKeyDown={e => e.key === 'Enter' && handleUpdateName()}
+          />
+          <button
+            onClick={handleUpdateName}
+            className="rounded-xl bg-indigo-600 p-2 text-white shadow-md transition-all hover:scale-105 hover:bg-indigo-700 active:scale-95"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => setIsEditingName(false)}
+            className="rounded-xl p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      )
+    }
+    return (
+      <div className="group flex cursor-default items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 p-3 transition-all hover:border-indigo-100 hover:bg-white hover:shadow-md hover:shadow-indigo-50">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] bg-gradient-to-br from-indigo-500 to-purple-600 font-black text-white shadow-lg shadow-indigo-200 transition-transform group-hover:scale-105">
+            {currentUser?.username?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <div className="mb-0.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+              Your Identity
+            </div>
+            <div className="text-base font-black tracking-tight text-gray-900">
+              {currentUser?.username}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            setTempName(currentUser?.username || '')
+            setIsEditingName(true)
+          }}
+          className="rounded-xl border border-indigo-100 bg-white px-4 py-2 text-xs font-bold text-indigo-600 opacity-0 shadow-sm transition-all group-hover:opacity-100 hover:border-indigo-200 hover:shadow-md active:scale-95"
+        >
+          修改
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
       className={`relative flex h-[100dvh] flex-col overflow-hidden transition-colors duration-700 ease-in-out md:flex-row ${bgColor}`}
     >
+      {/* --- Global P2P Components --- */}
+      <TransferConfirmModal
+        isOpen={!!p2p.ui.confirmModalData}
+        fromUser={p2p.ui.confirmModalData?.fromUser || ({} as User)}
+        fileMeta={
+          p2p.ui.confirmModalData?.fileMeta || ({} as FileTransferMetadata)
+        }
+        onReject={p2p.actions.rejectTransfer}
+        onAccept={p2p.actions.acceptTransfer}
+      />
+
+      <ShareDialog
+        isOpen={p2p.ui.isShareDialogOpen}
+        fileMeta={p2p.ui.shareFileMeta}
+        recipientCount={users.length - 1} // 排除自己
+        onConfirm={p2p.actions.confirmShare}
+        onCancel={p2p.actions.closeShareDialog}
+      />
+
+      <TransferProgress
+        progress={p2p.data.progress}
+        isReceiving={p2p.data.isReceiving}
+        statusText={p2p.ui.statusText}
+        currentStep={p2p.ui.p2pStep}
+        stepStatus={p2p.ui.p2pStepStatus}
+        onCancel={() => {
+          p2p.actions.cancelTransfer()
+        }}
+      />
+
       {/* --- 区域 A: 视频舞台 (Video Stage) --- */}
-      {/* 手机: 35vh 固定高度 / PC: 自适应剩余宽度 */}
       <div
         className={`relative w-full shrink-0 transition-all duration-700 md:h-full md:flex-1 ${
           videoUrl ? 'h-[35vh]' : 'h-auto min-h-[35vh]'
@@ -176,7 +345,6 @@ export const RoomPage = () => {
       </div>
 
       {/* --- 区域 B: 功能面板 (Content Panel) --- */}
-      {/* 手机: 剩余高度 / PC: 固定宽度侧边栏 */}
       <div
         className={`relative z-20 flex min-h-0 flex-1 flex-col bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] ${
           isSidebarOpen
@@ -193,7 +361,20 @@ export const RoomPage = () => {
               activeTab === 'chat' ? 'overflow-hidden' : 'overflow-y-auto'
             }`}
           >
-            {activeTab === 'chat' && <ChatPanel className="h-full" />}
+            {activeTab === 'chat' && (
+              <ChatPanel
+                className="h-full"
+                isHost={isHost}
+                hasFile={!!cachedFileHandle || !!fileObject}
+                onShareClick={() =>
+                  p2p.actions.openShareDialog(
+                    cachedFileHandle,
+                    fileObject,
+                    videoUrl,
+                  )
+                }
+              />
+            )}
 
             {activeTab === 'users' && (
               <div className="flex flex-col gap-3 p-4">
@@ -201,9 +382,11 @@ export const RoomPage = () => {
                   <UserItem
                     key={u.id}
                     user={u}
-                    isHost={u.id === (users[0]?.id || '')}
+                    isHost={u.id === hostId}
                     isMe={u.id === currentUser?.id}
-                    hostDuration={users[0]?.videoDuration}
+                    hostDuration={
+                      users.find(user => user.id === hostId)?.videoDuration
+                    }
                     variant="vertical"
                   />
                 ))}
@@ -217,11 +400,28 @@ export const RoomPage = () => {
                   currentUser={currentUser}
                   className="bg-transparent shadow-none"
                 />
-                <div className="p-6">
+                <div className="flex flex-col gap-3 p-6">
+                  {/* P2P Export Button (Mobile) */}
+                  {isP2PVideo && (
+                    <button
+                      onClick={() => {
+                        const file = p2p.actions.getReceivedFile()
+                        if (file) showSaveFilePicker(file)
+                        else toast.error('文件已失效')
+                      }}
+                      className="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-md active:scale-95"
+                    >
+                      💾 保存视频到本地
+                    </button>
+                  )}
+
                   {/* 手机端独有的更换视频按钮 */}
                   {videoUrl && (
                     <button
-                      onClick={pickFile}
+                      onClick={() => {
+                        pickFile()
+                        setIsP2PVideo(false)
+                      }}
                       className="w-full rounded-2xl border border-gray-200 bg-white py-4 font-bold text-gray-700 shadow-sm"
                     >
                       更换视频源
@@ -246,7 +446,7 @@ export const RoomPage = () => {
               </h2>
               <button
                 onClick={() => {
-                  copyToClipboard(window.location.href)
+                  void copyToClipboard(window.location.href)
                 }}
                 className="rounded-xl p-2.5 text-gray-400 shadow-sm ring-1 ring-gray-100 transition-all hover:bg-indigo-50 hover:text-indigo-600 active:scale-95"
               >
@@ -265,82 +465,7 @@ export const RoomPage = () => {
                 </svg>
               </button>
             </div>
-
-            {/* 昵称编辑区 */}
-            {isEditingName ? (
-              <div className="animate-fade-in flex items-center gap-2 rounded-2xl border border-indigo-100 bg-white p-1.5 shadow-lg ring-2 shadow-indigo-50 ring-indigo-50">
-                <input
-                  autoFocus
-                  maxLength={12}
-                  className="flex-1 border-0 bg-transparent px-3 py-2 text-sm font-bold text-gray-900 outline-none placeholder:font-normal focus:ring-0"
-                  value={tempName}
-                  onChange={e => setTempName(e.target.value)}
-                  placeholder="新昵称"
-                  onKeyDown={e => e.key === 'Enter' && handleUpdateName()}
-                />
-                <button
-                  onClick={handleUpdateName}
-                  className="rounded-xl bg-indigo-600 p-2 text-white shadow-md transition-all hover:scale-105 hover:bg-indigo-700 active:scale-95"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setIsEditingName(false)}
-                  className="rounded-xl p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div className="group flex cursor-default items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 p-3 transition-all hover:border-indigo-100 hover:bg-white hover:shadow-md hover:shadow-indigo-50">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] bg-gradient-to-br from-indigo-500 to-purple-600 font-black text-white shadow-lg shadow-indigo-200 transition-transform group-hover:scale-105">
-                    {currentUser?.username?.[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="mb-0.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase">
-                      Your Identity
-                    </div>
-                    <div className="text-base font-black tracking-tight text-gray-900">
-                      {currentUser?.username}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setTempName(currentUser?.username || '')
-                    setIsEditingName(true)
-                  }}
-                  className="rounded-xl border border-indigo-100 bg-white px-4 py-2 text-xs font-bold text-indigo-600 opacity-0 shadow-sm transition-all group-hover:opacity-100 hover:border-indigo-200 hover:shadow-md active:scale-95"
-                >
-                  修改
-                </button>
-              </div>
-            )}
+            {renderDesktopNameEditor()}
           </div>
 
           {/* User List (Horizontal) */}
@@ -349,22 +474,67 @@ export const RoomPage = () => {
               <UserItem
                 key={u.id}
                 user={u}
-                isHost={u.id === (users[0]?.id || '')}
+                isHost={u.id === hostId}
                 isMe={u.id === currentUser?.id}
-                hostDuration={users[0]?.videoDuration}
+                hostDuration={
+                  users.find(user => user.id === hostId)?.videoDuration
+                }
                 variant="horizontal"
               />
             ))}
           </div>
 
           {/* Chat */}
-          <ChatPanel className="min-h-0 flex-1" />
+          <ChatPanel
+            className="min-h-0 flex-1"
+            isHost={isHost}
+            hasFile={!!cachedFileHandle || !!fileObject}
+            onShareClick={() =>
+              p2p.actions.openShareDialog(
+                cachedFileHandle,
+                fileObject,
+                videoUrl,
+              )
+            }
+          />
 
           {/* Change Video Button */}
           {videoUrl && (
-            <div className="flex shrink-0 justify-center border-t border-gray-100 bg-white p-4 pb-6">
+            <div className="flex shrink-0 justify-center gap-3 border-t border-gray-100 bg-white p-4 pb-6">
+              {/* P2P Video Export Button (Persistent) */}
+              {isP2PVideo && (
+                <button
+                  onClick={() => {
+                    const file = p2p.actions.getReceivedFile()
+                    if (file) showSaveFilePicker(file)
+                    else toast.error('文件已失效')
+                  }}
+                  className="group flex items-center gap-2 rounded-2xl bg-indigo-50 px-5 py-3 text-xs font-bold text-indigo-600 transition-all hover:bg-indigo-100 active:scale-95"
+                >
+                  <span className="rounded-lg bg-white p-1.5 text-indigo-600 shadow-sm transition-transform group-hover:scale-110">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                  </span>
+                  保存视频
+                </button>
+              )}
+
               <button
-                onClick={pickFile}
+                onClick={() => {
+                  pickFile()
+                  setIsP2PVideo(false) // Reset flag when manually picking
+                }}
                 className="group flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-bold text-gray-500 transition-all hover:bg-indigo-50 hover:text-indigo-600"
               >
                 <span className="rounded-lg bg-gray-100 p-1.5 transition-colors group-hover:bg-indigo-200 group-hover:text-indigo-700">

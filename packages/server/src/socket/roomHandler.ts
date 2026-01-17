@@ -5,6 +5,8 @@ import type {
   User,
   RoomState,
   SyncAction,
+  FileTransferMetadata,
+  RTCIceCandidateInit,
 } from '@local-party/shared/src/types'
 import { roomStore } from '../state/roomStore'
 import { generateRoomId } from '../utils/idGenerator'
@@ -23,10 +25,36 @@ const formatDuration = (seconds: number) => {
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
 }
 
+// 活跃的传输会话 (State)
+const hostTransferTimers = new Map<
+  string,
+  {
+    timer: NodeJS.Timeout
+    expectedHostName: string
+  }
+>() // 房间ID -> {定时器, 原房主名}
+
+const activeTransfers = new Map<
+  string,
+  {
+    fromUser: User
+    toUsers: User[]
+  }
+>()
+
 export const registerRoomHandlers = (
   io: Server<ClientToServerEvents, ServerToClientEvents>,
   socket: Socket<ClientToServerEvents, ServerToClientEvents>,
 ) => {
+  const findRoomBySocketId = (socketId: string) => {
+    for (const room of Object.values(roomStore.getAllRooms())) {
+      if (room.users.some(u => u.id === socketId)) {
+        return room
+      }
+    }
+    return null
+  }
+
   // --- 创建房间 ---
   socket.on(
     'create_room',
@@ -55,7 +83,7 @@ export const registerRoomHandlers = (
 
       socket.emit('room_joined', {
         roomId,
-        hostId: newRoom.hostId, // Sync hostId
+        hostId: newRoom.hostId,
         history: [],
         users: [newUser],
       })
@@ -81,7 +109,12 @@ export const registerRoomHandlers = (
         return
       }
 
-      // 如果房间正在“缓刑期”，取消清理计时器
+      // 限制房间人数最多为 2 人
+      if (room.users.length >= 2) {
+        if (callback) callback({ success: false, error: '房间已满 (上限2人)' })
+        return
+      }
+
       roomStore.cancelCleanup(roomId)
 
       if (room.password && room.password !== password) {
@@ -89,14 +122,29 @@ export const registerRoomHandlers = (
         return
       }
 
+      // --- 房主重连检测 ---
+      const pendingProtection = hostTransferTimers.get(roomId)
       const safeUsername = username.substring(0, MAX_USERNAME_LEN)
+
+      if (
+        pendingProtection &&
+        pendingProtection.expectedHostName === safeUsername
+      ) {
+        console.log(`[Host Reconnect] 房主 ${safeUsername} 重新连接，取消移交`)
+        clearTimeout(pendingProtection.timer)
+        hostTransferTimers.delete(roomId)
+
+        // 恢复房主身份
+        room.hostId = socket.id
+        io.to(roomId).emit('host_updated', socket.id) // 通知其他人（如果有）
+      }
+
       const newUser: User = {
         id: socket.id,
         username: safeUsername,
         roomId,
       }
 
-      // 弱校验：视频时长
       if (
         room.videoMeta &&
         videoMeta &&
@@ -111,16 +159,14 @@ export const registerRoomHandlers = (
       room.users.push(newUser)
       socket.join(roomId)
 
-      // 1. 告诉自己
       socket.emit('room_joined', {
         roomId,
-        hostId: room.hostId, // Sync hostId
+        hostId: room.hostId,
         history: room.messages,
         users: room.users,
         currentStatus: room.lastAction,
       })
 
-      // 2. 告诉别人
       socket.to(roomId).emit('user_joined', newUser)
 
       console.log(
@@ -132,157 +178,355 @@ export const registerRoomHandlers = (
 
   // --- 状态更新 ---
   socket.on('update_status', ({ duration, fileName }) => {
-    const allRooms = roomStore.getAllRooms()
-    for (const [roomId, room] of Object.entries(allRooms)) {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
       const user = room.users.find(u => u.id === socket.id)
       if (user) {
         user.videoDuration = duration
         user.fileName = fileName.substring(0, 50)
-        io.to(roomId).emit('user_updated', user)
-        break
+        io.to(room.id).emit('user_updated', user)
       }
     }
   })
 
   // --- 心跳同步 (Host Only) ---
   socket.on('send_heartbeat', payload => {
-    const allRooms = roomStore.getAllRooms()
-    for (const [roomId, room] of Object.entries(allRooms)) {
-      if (room.hostId === socket.id) {
-        // 更新服务端的 lastAction，确保新加入的人拿到的是最新的
-        if (room.lastAction) {
-          room.lastAction.timestamp = payload.timestamp
-          room.lastAction.type = payload.paused ? 'pause' : 'play'
-        } else {
-          // 如果之前没有任何动作，初始化一个
-          room.lastAction = {
-            type: payload.paused ? 'pause' : 'play',
-            timestamp: payload.timestamp,
-          }
+    const room = findRoomBySocketId(socket.id)
+    if (room && room.hostId === socket.id) {
+      if (room.lastAction) {
+        room.lastAction.timestamp = payload.timestamp
+        room.lastAction.type = payload.paused ? 'pause' : 'play'
+      } else {
+        room.lastAction = {
+          type: payload.paused ? 'pause' : 'play',
+          timestamp: payload.timestamp,
         }
-
-        // 广播给房间里其他人
-        socket.to(roomId).emit('receive_heartbeat', payload)
-        break
       }
+      socket.to(room.id).emit('receive_heartbeat', payload)
     }
   })
 
   // --- 视频同步指令 (仅限房主) ---
   socket.on('send_sync', (action: SyncAction) => {
-    const allRooms = roomStore.getAllRooms()
-    for (const [roomId, room] of Object.entries(allRooms)) {
-      if (room.users.some(u => u.id === socket.id)) {
-        // [权限校验]
-        if (room.hostId !== socket.id) {
-          console.warn(`[Sync Denied] User ${socket.id} is not host.`)
-          socket.emit('error', '只有房主可以控制视频进度')
-          return
-        }
+    const room = findRoomBySocketId(socket.id)
+    if (room && room.hostId === socket.id) {
+      const user = room.users.find(u => u.id === socket.id)
+      socket.to(room.id).emit('receive_sync', action, user?.username || '未知')
 
-        const user = room.users.find(u => u.id === socket.id)
-        socket.to(roomId).emit('receive_sync', action, user?.username || '未知')
+      const actionText =
+        action.type === 'play'
+          ? '开始了播放'
+          : action.type === 'pause'
+            ? '暂停了视频'
+            : action.type === 'seek'
+              ? `跳转到了 ${formatDuration(action.timestamp)}`
+              : '操作了视频'
 
-        const actionText =
-          action.type === 'play'
-            ? '开始了播放'
-            : action.type === 'pause'
-              ? '暂停了视频'
-              : action.type === 'seek'
-                ? `跳转到了 ${formatDuration(action.timestamp)}`
-                : '操作了视频'
-
-        const sysMsg = {
-          id: Date.now().toString(),
-          type: 'system' as const,
-          userId: 'system',
-          username: user?.username || '未知',
-          content: actionText,
-          timestamp: Date.now(),
-        }
-
-        room.messages.push(sysMsg)
-        if (room.messages.length > MAX_MESSAGES) {
-          room.messages.shift()
-        }
-
-        io.to(roomId).emit('receive_message', sysMsg)
-        room.lastAction = action
-        break
+      const sysMsg = {
+        id: Date.now().toString(),
+        type: 'system' as const,
+        userId: 'system',
+        username: user?.username || '未知',
+        content: actionText,
+        timestamp: Date.now(),
       }
+
+      room.messages.push(sysMsg)
+      if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+
+      io.to(room.id).emit('receive_message', sysMsg)
+      room.lastAction = action
+    } else if (room) {
+      socket.emit('error', '只有房主可以控制视频进度')
     }
   })
 
   // --- 聊天消息 ---
   socket.on('send_message', content => {
     if (!content.trim()) return
-
-    const allRooms = roomStore.getAllRooms()
-    for (const [roomId, room] of Object.entries(allRooms)) {
-      if (room.users.some(u => u.id === socket.id)) {
-        const user = room.users.find(u => u.id === socket.id)
-
-        const msg = {
-          id: Date.now().toString(),
-          type: 'text' as const,
-          userId: socket.id,
-          username: user?.username || 'Unknown',
-          content: content.substring(0, MAX_CONTENT_LEN),
-          timestamp: Date.now(),
-        }
-
-        room.messages.push(msg)
-        if (room.messages.length > MAX_MESSAGES) {
-          room.messages.shift()
-        }
-
-        io.to(roomId).emit('receive_message', msg)
-        break
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
+      const user = room.users.find(u => u.id === socket.id)
+      const msg = {
+        id: Date.now().toString(),
+        type: 'text' as const,
+        userId: socket.id,
+        username: user?.username || 'Unknown',
+        content: content.substring(0, MAX_CONTENT_LEN),
+        timestamp: Date.now(),
       }
+
+      room.messages.push(msg)
+      if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+
+      io.to(room.id).emit('receive_message', msg)
     }
   })
 
   // --- 断开连接 ---
   socket.on('disconnect', () => {
-    const allRooms = roomStore.getAllRooms()
-    for (const [roomId, room] of Object.entries(allRooms)) {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
       const userIndex = room.users.findIndex(u => u.id === socket.id)
-      if (userIndex !== -1) {
-        const username = room.users[userIndex].username
-        const isHost = room.hostId === socket.id // 检查是否是房主
+      if (userIndex === -1) return
 
-        room.users.splice(userIndex, 1)
-        io.to(roomId).emit('user_left', socket.id)
+      const username = room.users[userIndex].username
+      const isHost = room.hostId === socket.id
 
-        console.log(`[Left] ${username} left Room:${roomId}`)
+      room.users.splice(userIndex, 1)
+      io.to(room.id).emit('user_left', socket.id)
+      console.log(`[Left] ${username} left Room:${room.id}`)
 
-        // [房主移交逻辑]
-        if (isHost && room.users.length > 0) {
-          const newHost = room.users[0]
-          room.hostId = newHost.id
-          io.to(roomId).emit('host_updated', newHost.id)
+      if (isHost) {
+        // 房主离开：启动保护机制
+        console.log(`[Host Left] 房主 ${username} 离开，启动 5秒 保护倒计时...`)
 
-          // 发个系统消息通知大家
-          const sysMsg = {
-            id: Date.now().toString(),
-            type: 'system' as const,
-            userId: 'system',
-            username: 'System',
-            content: `房主已移交给 ${newHost.username}`,
-            timestamp: Date.now(),
+        const timer = setTimeout(() => {
+          // 再次检查房间状态（防止闭包引用过期，重新获取）
+          const currentRoom = roomStore.getRoom(room.id)
+          if (!currentRoom) return
+
+          // 确认保护期已过且房主确实不在
+          if (hostTransferTimers.has(room.id)) {
+            hostTransferTimers.delete(room.id)
+
+            if (currentRoom.users.length > 0) {
+              const newHost = currentRoom.users[0]
+              currentRoom.hostId = newHost.id
+              io.to(currentRoom.id).emit('host_updated', newHost.id)
+
+              const sysMsg = {
+                id: Date.now().toString(),
+                type: 'system' as const,
+                userId: 'system',
+                username: 'System',
+                content: `房主已移交给 ${newHost.username}`,
+                timestamp: Date.now(),
+              }
+              io.to(currentRoom.id).emit('receive_message', sysMsg)
+              console.log(
+                `[Host Transfer] Timeout reached. New host: ${newHost.username}`,
+              )
+            } else {
+              // 房间空了，清理
+              roomStore.scheduleCleanup(currentRoom.id)
+              console.log(
+                `[Grace] Room:${currentRoom.id} is empty. Cleanup scheduled.`,
+              )
+            }
           }
-          io.to(roomId).emit('receive_message', sysMsg)
-          console.log(`[Host Transfer] New host: ${newHost.username}`)
-        }
+        }, 5000)
 
+        hostTransferTimers.set(room.id, {
+          timer,
+          expectedHostName: username,
+        })
+      } else {
+        // 非房主离开：常规处理
         if (room.users.length === 0) {
-          // 不再立即删除，进入 5 分钟缓刑期
-          roomStore.scheduleCleanup(roomId)
+          roomStore.scheduleCleanup(room.id)
           console.log(
-            `[Grace] Room:${roomId} is now empty. Grace period started.`,
+            `[Grace] Room:${room.id} is now empty. Grace period started.`,
           )
         }
-        break
+      }
+    }
+  })
+
+  // --- P2P 视频分享信令 ---
+
+  // 1. 房主发送传输请求 (增加 fileInfo 参数)
+  socket.on('send_transfer_offer', (transferId, offer, fileInfo) => {
+    const room = findRoomBySocketId(socket.id)
+    if (!room || room.hostId !== socket.id) return
+
+    const hostUser = room.users.find(u => u.id === socket.id)
+    if (!hostUser) return
+
+    const targetUsers = room.users.filter(u => u.id !== socket.id)
+    if (targetUsers.length === 0) return
+
+    // 优先使用前端传来的 fileInfo，如果没有则回退到旧逻辑
+    const fileMeta: FileTransferMetadata = {
+      fileName: fileInfo?.fileName || hostUser.fileName || 'Unknown Video',
+      fileSize: fileInfo?.fileSize || 0,
+      fileType: fileInfo?.fileType || 'video/*',
+      senderId: socket.id,
+      senderName: hostUser.username,
+      transferId: transferId,
+      roomId: room.id,
+    }
+
+    activeTransfers.set(transferId, {
+      fromUser: hostUser,
+      toUsers: targetUsers,
+    })
+
+    // 广播给所有其他成员
+    socket.to(room.id).emit('receive_transfer_offer', {
+      fromUser: hostUser,
+      fileMeta,
+      offer, // 这里我们转发原始 offer
+    })
+
+    console.log(
+      `[Transfer] Offer sent from ${hostUser.username} in room ${room.id} for transfer ${transferId} (Size: ${fileMeta.fileSize})`,
+    )
+
+    // 广播系统消息
+    const sysMsg = {
+      id: `sys_${Date.now()}`,
+      userId: 'system',
+      username: 'System',
+      content: `房主 ${hostUser.username} 发起了视频分享: ${fileMeta.fileName}`,
+      timestamp: Date.now(),
+      type: 'system' as const,
+    }
+
+    // 存入历史消息
+    room.messages.push(sysMsg)
+    if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+
+    // 发送给所有人（包括房主自己）
+    io.to(room.id).emit('receive_message', sysMsg)
+  })
+
+  // 2. 成员接受传输
+  socket.on('accept_transfer', (transferId, answer) => {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
+      // 直接转发给房主
+      io.to(room.hostId).emit('transfer_accepted', transferId, answer)
+      console.log(
+        `[Transfer] Answer from ${socket.id} forwarded to host ${room.hostId} for transfer ${transferId}`,
+      )
+
+      // 广播接受消息
+      const user = room.users.find(u => u.id === socket.id)
+      if (user) {
+        const sysMsg = {
+          id: `sys_${Date.now()}`,
+          userId: 'system',
+          username: 'System',
+          content: `${user.username} 接受了视频分享`,
+          timestamp: Date.now(),
+          type: 'system' as const,
+        }
+        room.messages.push(sysMsg)
+        if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+        io.to(room.id).emit('receive_message', sysMsg)
+      }
+    }
+  })
+
+  // 3. ICE candidate 转发
+  socket.on(
+    'send_ice_candidate',
+    (candidate: RTCIceCandidateInit, transferId: string) => {
+      const room = findRoomBySocketId(socket.id)
+      if (room) {
+        // 简单粗暴：直接广播给房间里的其他人
+        socket.to(room.id).emit('ice_candidate', candidate, transferId)
+      }
+    },
+  )
+
+  // 4. 传输完成/失败/取消等事件的清理
+  const cleanupTransfer = (transferId: string) => {
+    if (activeTransfers.has(transferId)) {
+      activeTransfers.delete(transferId)
+      console.log(`[Transfer] Cleaned up transfer session ${transferId}`)
+    }
+  }
+
+  socket.on('transfer_completed', transferId => {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
+      // 广播完成消息
+      const user = room.users.find(u => u.id === socket.id)
+      if (user) {
+        const sysMsg = {
+          id: `sys_${Date.now()}`,
+          userId: 'system',
+          username: 'System',
+          content: `视频传输完成`,
+          timestamp: Date.now(),
+          type: 'system' as const,
+        }
+        room.messages.push(sysMsg)
+        if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+        io.to(room.id).emit('receive_message', sysMsg)
+      }
+    }
+    cleanupTransfer(transferId)
+  })
+
+  socket.on('transfer_failed', (transferId, reason) => {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
+      // 广播失败消息
+      const user = room.users.find(u => u.id === socket.id)
+      if (user) {
+        const sysMsg = {
+          id: `sys_${Date.now()}`,
+          userId: 'system',
+          username: 'System',
+          content: `传输失败: ${reason}`,
+          timestamp: Date.now(),
+          type: 'system' as const,
+        }
+        room.messages.push(sysMsg)
+        if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+        io.to(room.id).emit('receive_message', sysMsg)
+      }
+    }
+    cleanupTransfer(transferId)
+  })
+
+  socket.on('cancel_transfer_offer', transferId => {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
+      socket.to(room.id).emit('transfer_offer_cancelled', transferId)
+
+      // 广播取消消息
+      const user = room.users.find(u => u.id === socket.id)
+      if (user) {
+        const sysMsg = {
+          id: `sys_${Date.now()}`,
+          userId: 'system',
+          username: 'System',
+          content: `${user.username} 取消了视频分享`,
+          timestamp: Date.now(),
+          type: 'system' as const,
+        }
+        room.messages.push(sysMsg)
+        if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+        io.to(room.id).emit('receive_message', sysMsg)
+      }
+
+      cleanupTransfer(transferId)
+    }
+  })
+  socket.on('reject_transfer', transferId => {
+    const room = findRoomBySocketId(socket.id)
+    if (room) {
+      io.to(room.hostId).emit('transfer_rejected', transferId)
+      // Note: We don't cleanup here, host might retry with another peer.
+
+      // 广播拒绝消息
+      const user = room.users.find(u => u.id === socket.id)
+      if (user) {
+        const sysMsg = {
+          id: `sys_${Date.now()}`,
+          userId: 'system',
+          username: 'System',
+          content: `${user.username} 拒绝了视频分享`,
+          timestamp: Date.now(),
+          type: 'system' as const,
+        }
+        room.messages.push(sysMsg)
+        if (room.messages.length > MAX_MESSAGES) room.messages.shift()
+        io.to(room.id).emit('receive_message', sysMsg)
       }
     }
   })

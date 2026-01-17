@@ -3,6 +3,9 @@ import { useAppStore } from '@/stores/useAppStore'
 
 interface ChatPanelProps {
   className?: string
+  isHost?: boolean
+  hasFile?: boolean
+  onShareClick?: () => void
 }
 
 const formatTime = (timestamp: number) => {
@@ -13,7 +16,12 @@ const formatTime = (timestamp: number) => {
   })
 }
 
-export const ChatPanel = ({ className }: ChatPanelProps) => {
+export const ChatPanel = ({
+  className,
+  isHost,
+  hasFile,
+  onShareClick,
+}: ChatPanelProps) => {
   const { messages, currentUser, socket } = useAppStore()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -58,23 +66,48 @@ export const ChatPanel = ({ className }: ChatPanelProps) => {
             const isSystemUser =
               msg.username === 'System' || msg.username === '未知'
 
+            // 高亮判断：包含特定关键词的消息
+            const isHighlight =
+              msg.content.includes('分享') ||
+              msg.content.includes('传输') ||
+              msg.content.includes('拒绝') ||
+              msg.content.includes('取消')
+
             return (
               <div
                 key={msg.id}
                 className="animate-message-in my-4 flex justify-center opacity-85"
               >
-                <span className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs text-gray-500 shadow-sm">
-                  <span className="mr-1 font-mono text-[10px] text-gray-400">
+                <span
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs shadow-sm ${
+                    isHighlight
+                      ? 'border-indigo-100 bg-indigo-50 text-indigo-600'
+                      : 'border-gray-200 bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <span
+                    className={`mr-1 font-mono text-[10px] ${
+                      isHighlight ? 'text-indigo-400' : 'text-gray-400'
+                    }`}
+                  >
                     {time}
                   </span>
 
                   {!isSystemUser && (
-                    <span className="rounded border border-indigo-100/50 bg-indigo-50 px-1.5 py-0.5 font-bold text-indigo-600">
+                    <span
+                      className={`rounded border px-1.5 py-0.5 font-bold ${
+                        isHighlight
+                          ? 'border-indigo-200 bg-white text-indigo-700'
+                          : 'border-indigo-100/50 bg-indigo-50 text-indigo-600'
+                      }`}
+                    >
                       {msg.username}
                     </span>
                   )}
 
-                  <span>{msg.content}</span>
+                  <span className={isHighlight ? 'font-medium' : ''}>
+                    {msg.content}
+                  </span>
                 </span>
               </div>
             )
@@ -125,6 +158,36 @@ export const ChatPanel = ({ className }: ChatPanelProps) => {
         className="fixed right-0 bottom-0 left-0 z-50 border-t border-gray-100 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md md:relative md:z-20 md:bg-white md:pb-4 md:shadow-none"
       >
         <div className="relative flex items-center gap-2">
+          {/* 分享视频按钮 (仅房主可见) */}
+          {isHost && (
+            <button
+              type="button"
+              onClick={onShareClick}
+              disabled={!hasFile}
+              className={`group flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-95 ${
+                hasFile
+                  ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                  : 'cursor-not-allowed bg-gray-100 text-gray-300'
+              }`}
+              title={hasFile ? '分享当前视频给成员' : '请先选择本地视频文件'}
+            >
+              {/* 这里更换为标准的 Share 图标 (方框箭头) */}
+              <svg
+                className={`h-5 w-5 transition-transform ${hasFile ? 'group-hover:scale-110' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                />
+              </svg>
+            </button>
+          )}
+
           <input
             type="text"
             maxLength={200}

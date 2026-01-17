@@ -73,7 +73,7 @@
 
 ## 4. 即时通讯 (Chat)
 
-*(保持不变，参考原有逻辑)*
+_(保持不变，参考原有逻辑)_
 
 ---
 
@@ -105,7 +105,7 @@ sequenceDiagram
     Note over H, G: 2. 心跳校准 (每5秒)
     H->>S: send_heartbeat {time: 15.5}
     S->>G: receive_heartbeat {time: 15.5}
-    
+
     alt Guest 误差 < 2s
         G->>G: 无操作
     else Guest 误差 > 2s (卡顿/掉队)
