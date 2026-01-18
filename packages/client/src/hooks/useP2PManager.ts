@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@/stores/useAppStore'
 import { useP2PTransfer } from './useP2PTransfer'
 import toast from 'react-hot-toast'
 import type {

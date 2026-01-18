@@ -8,8 +8,8 @@ import type {
   RTCIceCandidateInit,
 } from '@local-party/shared/src/types'
 import toast from 'react-hot-toast'
-import { FileSender } from '../utils/p2p/FileSender'
-import { FileReceiver } from '../utils/p2p/FileReceiver'
+import { FileSender } from '@/utils/p2p/FileSender'
+import { FileReceiver } from '@/utils/p2p/FileReceiver'
 
 // WebRTC 配置
 const RTC_CONFIG = {

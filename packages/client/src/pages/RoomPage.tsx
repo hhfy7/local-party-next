@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAppStore } from '../stores/useAppStore'
+import { useAppStore } from '@/stores/useAppStore'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { ChatPanel } from '@/components/ChatPanel'
 import { saveNickname } from '@/utils/storage'
@@ -8,10 +8,10 @@ import toast from 'react-hot-toast'
 import { copyToClipboard } from '@/utils/clipboard'
 
 // Hooks
-import { useRoomLogic } from '../hooks/useRoomLogic'
-import { useFileHandler } from '../hooks/useFileHandler'
-import { useVideoSync } from '../hooks/useVideoSync'
-import { useP2PManager } from '../hooks/useP2PManager'
+import { useRoomLogic } from '@/hooks/useRoomLogic'
+import { useFileHandler } from '@/hooks/useFileHandler'
+import { useVideoSync } from '@/hooks/useVideoSync'
+import { useP2PManager } from '@/hooks/useP2PManager'
 
 import type { User, FileTransferMetadata } from '@local-party/shared/src/types'
 

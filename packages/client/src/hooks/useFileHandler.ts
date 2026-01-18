@@ -3,7 +3,7 @@ import {
   clearVideoHandle,
   getVideoHandle,
   saveVideoHandle,
-} from '../utils/storage'
+} from '@/utils/storage'
 import toast from 'react-hot-toast'
 
 export const useFileHandler = (roomId?: string) => {

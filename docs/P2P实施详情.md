@@ -798,12 +798,14 @@ socket.emit('send_transfer_offer', 'test-transfer-001', {
 #### 🚨 核心问题：React闭包陷阱（Closure Trap）
 
 **问题现象**:
+
 - 接收方收到30次重复的数据块
 - 文件大小不匹配（发送987,616字节，接收999,424字节，多出11,808字节）
 - React渲染错误："Cannot update a component while rendering"
 - DataChannel过早关闭
 
 **根本原因**:
+
 ```typescript
 // ❌ 错误写法（闭包陷阱）
 dataChannel.onmessage = event => {
@@ -817,6 +819,7 @@ dataChannel.onmessage = event => {
 ```
 
 **技术原理**:
+
 - `useCallback`捕获的state值在`setState`更新后不会变化
 - `handleDataReceived`函数内部读取的`state.transferId`始终为`null`
 - 导致无法正确识别传输状态，数据被重复处理
@@ -824,19 +827,26 @@ dataChannel.onmessage = event => {
 #### 🔧 状态隔离设计
 
 **解决方案**:
+
 ```typescript
 // 使用Map和Set实现传输级别状态隔离
-const receivedFilesRef = useRef<Map<string, {
-  buffer: ArrayBuffer[],
-  size: number,
-  name: string,
-  type: string
-}>>(new Map())
+const receivedFilesRef = useRef<
+  Map<
+    string,
+    {
+      buffer: ArrayBuffer[]
+      size: number
+      name: string
+      type: string
+    }
+  >
+>(new Map())
 
 const completedTransfersRef = useRef<Set<string>>(new Set())
 ```
 
 **优势**:
+
 - 每个传输有独立的状态空间
 - 防止状态污染和重复处理
 - 支持并发或连续传输
@@ -852,12 +862,14 @@ const completedTransfersRef = useRef<Set<string>>(new Set())
 #### ⚡ 性能优化
 
 **分块大小调整**:
+
 ```typescript
 // 从16KB优化到64KB，减少75%调用开销
 const CHUNK_SIZE = 64 * 1024 // 64KB
 ```
 
 **预期性能提升**:
+
 - 传输速度提升2-3倍
 - 减少CPU占用和内存分配
 - 降低DataChannel压力
@@ -865,16 +877,18 @@ const CHUNK_SIZE = 64 * 1024 // 64KB
 #### 🔍 代码质量提升
 
 **TypeScript兼容性**:
+
 ```typescript
 // 处理WebRTC API与类型系统的兼容性
 const candidate: RTCIceCandidateInit = {
   candidate: event.candidate.candidate,
   sdpMid: event.candidate.sdpMid || '', // 处理可能的null值
-  sdpMLineIndex: event.candidate.sdpMLineIndex || 0
+  sdpMLineIndex: event.candidate.sdpMLineIndex || 0,
 }
 ```
 
 **详尽注释**:
+
 - 每个关键修复点都有详细注释
 - 解释技术决策的原因
 - 为后续维护提供指导
@@ -954,52 +968,60 @@ export const useP2PTransfer = () => {
   // WebRTC 引用 - 使用Map实现传输级别状态隔离
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
   const dataChannelsRef = useRef<Map<string, RTCDataChannel>>(new Map())
-  const receivedFilesRef = useRef<Map<string, {
-    buffer: ArrayBuffer[]
-    size: number
-    name: string
-    type: string
-  }>>(new Map())
+  const receivedFilesRef = useRef<
+    Map<
+      string,
+      {
+        buffer: ArrayBuffer[]
+        size: number
+        name: string
+        type: string
+      }
+    >
+  >(new Map())
   const completedTransfersRef = useRef<Set<string>>(new Set())
 
   // 清理函数 - 支持指定transferId，不干扰其他传输
-  const cleanup = useCallback((targetTransferId?: string) => {
-    const transferIdToClean = targetTransferId || state.transferId
-    if (!transferIdToClean) return
+  const cleanup = useCallback(
+    (targetTransferId?: string) => {
+      const transferIdToClean = targetTransferId || state.transferId
+      if (!transferIdToClean) return
 
-    console.log(`[P2P Transfer] 清理资源, transferId: ${transferIdToClean}`)
+      console.log(`[P2P Transfer] 清理资源, transferId: ${transferIdToClean}`)
 
-    // 清理指定传输的状态
-    const dataChannel = dataChannelsRef.current.get(transferIdToClean)
-    if (dataChannel) {
-      console.log(`[P2P Transfer] 关闭 DataChannel: ${transferIdToClean}`)
-      dataChannel.close()
-      dataChannelsRef.current.delete(transferIdToClean)
-    }
+      // 清理指定传输的状态
+      const dataChannel = dataChannelsRef.current.get(transferIdToClean)
+      if (dataChannel) {
+        console.log(`[P2P Transfer] 关闭 DataChannel: ${transferIdToClean}`)
+        dataChannel.close()
+        dataChannelsRef.current.delete(transferIdToClean)
+      }
 
-    const pc = peerConnectionsRef.current.get(transferIdToClean)
-    if (pc) {
-      console.log(`[P2P Transfer] 关闭 PeerConnection: ${transferIdToClean}`)
-      pc.close()
-      peerConnectionsRef.current.delete(transferIdToClean)
-    }
+      const pc = peerConnectionsRef.current.get(transferIdToClean)
+      if (pc) {
+        console.log(`[P2P Transfer] 关闭 PeerConnection: ${transferIdToClean}`)
+        pc.close()
+        peerConnectionsRef.current.delete(transferIdToClean)
+      }
 
-    receivedFilesRef.current.delete(transferIdToClean)
-    completedTransfersRef.current.delete(transferIdToClean)
+      receivedFilesRef.current.delete(transferIdToClean)
+      completedTransfersRef.current.delete(transferIdToClean)
 
-    // 只有在清理当前传输时才重置状态
-    if (transferIdToClean === state.transferId) {
-      setState({
-        transferId: null,
-        isConnected: false,
-        isReceiving: false,
-        progress: null,
-        error: null,
-      })
-    }
+      // 只有在清理当前传输时才重置状态
+      if (transferIdToClean === state.transferId) {
+        setState({
+          transferId: null,
+          isConnected: false,
+          isReceiving: false,
+          progress: null,
+          error: null,
+        })
+      }
 
-    console.log(`[P2P Transfer] 资源清理完成: ${transferIdToClean}`)
-  }, [state.transferId])
+      console.log(`[P2P Transfer] 资源清理完成: ${transferIdToClean}`)
+    },
+    [state.transferId],
+  )
 
   // 发送方：发起传输
   const initiateTransfer = useCallback(async () => {
@@ -1200,7 +1222,9 @@ export const useP2PTransfer = () => {
           dataChannelsRef.current.set(currentTransferId, dataChannel)
 
           dataChannel.onopen = () => {
-            console.log(`[P2P Transfer] DataChannel 已打开: ${currentTransferId}`)
+            console.log(
+              `[P2P Transfer] DataChannel 已打开: ${currentTransferId}`,
+            )
             toast.success('P2P连接已建立')
             setState(prev => ({ ...prev, isReceiving: true }))
           }
@@ -1212,7 +1236,9 @@ export const useP2PTransfer = () => {
           }
 
           dataChannel.onclose = () => {
-            console.log(`[P2P Transfer] DataChannel 已关闭: ${currentTransferId}`)
+            console.log(
+              `[P2P Transfer] DataChannel 已关闭: ${currentTransferId}`,
+            )
             toast.info('P2P连接已关闭')
             cleanup(currentTransferId)
           }
@@ -1423,7 +1449,12 @@ export const useP2PTransfer = () => {
   // 处理接收到的数据 - 关键修复：显式传递transferId，避免闭包陷阱
   const handleDataReceived = useCallback(
     (transferId: string, data: ArrayBuffer | string) => {
-      console.log('[File Transfer] 收到数据, transferId:', transferId, 'type:', typeof data)
+      console.log(
+        '[File Transfer] 收到数据, transferId:',
+        transferId,
+        'type:',
+        typeof data,
+      )
 
       // 5层防御体系 - 第1层：完成状态检查
       if (completedTransfersRef.current.has(transferId)) {
@@ -1440,7 +1471,9 @@ export const useP2PTransfer = () => {
 
             // 5层防御体系 - 第2层：元数据重复检测
             if (receivedFilesRef.current.has(transferId)) {
-              console.log(`[File Transfer] 传输 ${transferId} 元数据已存在，忽略`)
+              console.log(
+                `[File Transfer] 传输 ${transferId} 元数据已存在，忽略`,
+              )
               return
             }
 
@@ -1462,7 +1495,9 @@ export const useP2PTransfer = () => {
         const receivedFile = receivedFilesRef.current.get(transferId)
         // 5层防御体系 - 第3层：初始化验证
         if (!receivedFile) {
-          console.error(`[File Transfer] 错误: 传输 ${transferId} 未收到文件元数据`)
+          console.error(
+            `[File Transfer] 错误: 传输 ${transferId} 未收到文件元数据`,
+          )
           return
         }
 
@@ -1481,7 +1516,9 @@ export const useP2PTransfer = () => {
         }
 
         if (progress.percentage % 5 === 0) {
-          console.log(`[File Transfer] 接收进度: ${transferId} - ${progress.percentage}%`)
+          console.log(
+            `[File Transfer] 接收进度: ${transferId} - ${progress.percentage}%`,
+          )
         }
         setState(prev => ({ ...prev, progress }))
 
@@ -1585,7 +1622,7 @@ ls -lh packages/client/src/hooks/useP2PTransfer.ts
 
 **验证修复效果**:
 
-```bash
+````bash
 # 启动开发环境
 pnpm dev
 
@@ -1705,7 +1742,7 @@ function formatFileSize(bytes: number): string {
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
 }
-```
+````
 
 **验证**:
 
