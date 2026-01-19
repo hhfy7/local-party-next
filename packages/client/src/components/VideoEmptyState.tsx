@@ -1,17 +1,15 @@
-import { ChangeEvent } from 'react'
+// import { ChangeEvent } from 'react'
 
 interface VideoEmptyStateProps {
   cachedFileHandle: FileSystemFileHandle | null
   onRestore: () => void
   onPick: () => void
-  onInputSelect: (e: ChangeEvent<HTMLInputElement>) => void
 }
 
 export const VideoEmptyState = ({
   cachedFileHandle,
   onRestore,
   onPick,
-  onInputSelect,
 }: VideoEmptyStateProps) => {
   return (
     <div className="relative w-full max-w-2xl">
@@ -107,13 +105,6 @@ export const VideoEmptyState = ({
               </button>
             </>
           )}
-          <input
-            id="hidden-file-input"
-            type="file"
-            accept="video/*"
-            onChange={onInputSelect}
-            className="hidden"
-          />
         </div>
 
         <p className="mt-8 text-xs font-medium tracking-wide text-gray-400 uppercase opacity-60">

@@ -19,6 +19,8 @@ const RTC_CONFIG = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
   ],
 }
 
@@ -392,7 +394,8 @@ export const useP2PTransfer = () => {
         onComplete: () => {
           console.log('[P2P Sender] Complete')
           toast.success('文件发送完成')
-          if (socket) socket.emit('transfer_completed', transferId)
+          // Sender 不需要发送 completion 事件，避免服务器重复广播消息
+          // if (socket) socket.emit('transfer_completed', transferId)
           setTimeout(() => cleanup(transferId), 1000)
         },
         onError: err => {

@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import type { FileTransferProgress } from '@local-party/shared/src/types'
 
+export type TransferStep = 1 | 2 | 3 // 1: 响应, 2: 连接, 3: 传输
+export type TransferStatus = 'pending' | 'processing' | 'completed' | 'error'
+
 interface TransferProgressProps {
   progress: FileTransferProgress | null
   isReceiving?: boolean
   statusText?: string
   onCancel?: () => void
-  currentStep?: 1 | 2 | 3 // 1: 响应, 2: 连接, 3: 传输
-  stepStatus?: 'pending' | 'processing' | 'completed' | 'error'
+  currentStep?: TransferStep
+  stepStatus?: TransferStatus
 }
 
 export const TransferProgress = ({

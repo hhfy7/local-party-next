@@ -9,6 +9,10 @@ import type {
   RTCIceCandidateInit,
   FileTransferProgress,
 } from '@local-party/shared/src/types'
+import type {
+  TransferStep,
+  TransferStatus,
+} from '@/components/TransferProgress'
 
 export const useP2PManager = (
   setVideoFile: (file: File) => void,
@@ -37,10 +41,8 @@ export const useP2PManager = (
   // --- UI State ---
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const [p2pStatusText, setP2PStatusText] = useState('')
-  const [p2pStep, setP2PStep] = useState<1 | 2 | 3>(1)
-  const [p2pStepStatus, setP2PStepStatus] = useState<
-    'pending' | 'processing' | 'completed' | 'error'
-  >('pending')
+  const [p2pStep, setP2PStep] = useState<TransferStep>(1)
+  const [p2pStepStatus, setP2PStepStatus] = useState<TransferStatus>('pending')
 
   const [confirmModalData, setConfirmModalData] = useState<{
     fromUser: User

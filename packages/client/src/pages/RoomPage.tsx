@@ -329,7 +329,6 @@ export const RoomPage = () => {
                 cachedFileHandle={cachedFileHandle}
                 onRestore={restoreCachedVideo}
                 onPick={pickFile}
-                onInputSelect={handleInputSelect}
               />
             </div>
           ) : (
@@ -558,6 +557,15 @@ export const RoomPage = () => {
           )}
         </div>
       </div>
+
+      {/* Global Hidden Input for iPad/Fallback File Selection */}
+      <input
+        id="hidden-file-input"
+        type="file"
+        accept="video/*"
+        onChange={handleInputSelect}
+        className="hidden"
+      />
     </div>
   )
 }

@@ -13,6 +13,7 @@ export const useVideoSync = (
 ) => {
   const isRemoteAction = useRef(false)
   const hasSyncedInitialState = useRef(false)
+  const pauseDebounceTimer = useRef<number | null>(null)
   const seekDebounceTimer = useRef<number | null>(null)
   const isSeekingRef = useRef(false)
 
@@ -230,11 +231,36 @@ export const useVideoSync = (
 
     const onSeeking = () => {
       isSeekingRef.current = true
+      // 如果触发了 seeking，说明之前的 pause 是由拖动进度条引起的，取消发送 pause 消息
+      if (pauseDebounceTimer.current) {
+        clearTimeout(pauseDebounceTimer.current)
+        pauseDebounceTimer.current = null
+      }
     }
-    const onPlay = () => sendSync('play')
-    const onPause = () => sendSync('pause')
 
-    const onSeeked = () => {
+    const onPlay = () => {
+      // 播放时也清除可能的暂停防抖
+      if (pauseDebounceTimer.current) {
+        clearTimeout(pauseDebounceTimer.current)
+        pauseDebounceTimer.current = null
+      }
+      sendSync('play')
+    }
+
+    const onPause = () => {
+      // 防抖：延迟发送 pause，如果后续紧接着 seeking，则取消发送
+      if (pauseDebounceTimer.current) clearTimeout(pauseDebounceTimer.current)
+
+      pauseDebounceTimer.current = window.setTimeout(() => {
+        // 再次检查 seeking 状态（双重保险）
+        if (!isSeekingRef.current) {
+          sendSync('pause')
+        }
+        pauseDebounceTimer.current = null
+      }, 200) // 200ms 延迟足以覆盖 pause -> seeking 的时间差
+    }
+
+    const onSeekedWithDebounce = () => {
       if (seekDebounceTimer.current) clearTimeout(seekDebounceTimer.current)
       seekDebounceTimer.current = window.setTimeout(() => {
         sendSync('seek')
@@ -247,13 +273,14 @@ export const useVideoSync = (
     video.addEventListener('seeking', onSeeking)
     video.addEventListener('play', onPlay)
     video.addEventListener('pause', onPause)
-    video.addEventListener('seeked', onSeeked)
+    video.addEventListener('seeked', onSeekedWithDebounce)
 
     return () => {
       video.removeEventListener('seeking', onSeeking)
       video.removeEventListener('play', onPlay)
       video.removeEventListener('pause', onPause)
-      video.removeEventListener('seeked', onSeeked)
+      video.removeEventListener('seeked', onSeekedWithDebounce)
+      if (pauseDebounceTimer.current) clearTimeout(pauseDebounceTimer.current)
       if (seekDebounceTimer.current) clearTimeout(seekDebounceTimer.current)
     }
   }, [videoUrl, sendSync, videoRef])

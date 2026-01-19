@@ -89,6 +89,48 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       if (onVideoClick) onVideoClick()
     }
 
+    // 键盘快捷键监听
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // 如果焦点在输入框，不触发快捷键
+        if (
+          document.activeElement?.tagName === 'INPUT' ||
+          document.activeElement?.tagName === 'TEXTAREA'
+        ) {
+          return
+        }
+
+        const video = internalRef.current
+        if (!video) return
+
+        switch (e.key) {
+          case 'ArrowLeft':
+            e.preventDefault()
+            video.currentTime = Math.max(0, video.currentTime - 5)
+            triggerFeedback('pause') // 复用暂停图标作为后退反馈(可选)
+            break
+          case 'ArrowRight':
+            e.preventDefault()
+            video.currentTime = Math.min(video.duration, video.currentTime + 5)
+            triggerFeedback('play') // 复用播放图标作为快进反馈(可选)
+            break
+          case ' ': // 空格键切换播放/暂停
+            e.preventDefault()
+            if (video.paused) {
+              video.play().catch(() => {})
+              triggerFeedback('play')
+            } else {
+              video.pause()
+              triggerFeedback('pause')
+            }
+            break
+        }
+      }
+
+      window.addEventListener('keydown', handleKeyDown)
+      return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
     if (!src) {
       return (
         <div className="flex h-full w-full items-center justify-center bg-black text-gray-500">
