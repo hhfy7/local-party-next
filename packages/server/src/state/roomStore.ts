@@ -51,4 +51,14 @@ export const roomStore = {
 
   // 调试用
   getAllRooms: () => Object.fromEntries(rooms),
+
+  // 查找用户所在的房间
+  findRoomByUserSocketId: (socketId: string) => {
+    for (const room of rooms.values()) {
+      if (room.users.some(u => u.id === socketId)) {
+        return room
+      }
+    }
+    return undefined
+  },
 }
