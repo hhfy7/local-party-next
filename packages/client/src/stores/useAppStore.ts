@@ -18,7 +18,8 @@ interface AppState {
   users: User[]
   messages: ChatMessage[]
   lastAction: SyncAction | null
-  lastActionAt: number // 新增：收到最后指令的本地时间戳
+  lastActionAt: number
+  connectionError: boolean
 
   // Actions
   connect: () => void
@@ -39,7 +40,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   users: [],
   messages: [],
   lastAction: null,
-  lastActionAt: 0, // 初始化
+  lastActionAt: 0,
+  connectionError: false,
 
   connect: () => {
     if (get().socket) return
@@ -47,8 +49,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const socket = io(SOCKET_URL)
 
     socket.on('connect', () => {
-      set({ connected: true })
+      set({ connected: true, connectionError: false })
       console.log('Socket Connected:', socket.id)
+    })
+
+    socket.on('connect_error', err => {
+      console.error('Socket Connection Error:', err)
+      set({ connectionError: true })
     })
 
     socket.on('disconnect', () => {

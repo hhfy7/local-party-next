@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { LandingPage } from '@/pages/LandingPage'
 import { RoomPage } from '@/pages/RoomPage'
+import { GlobalConnectionAlert } from '@/components/GlobalConnectionAlert'
 import '@/index.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -16,6 +17,7 @@ createRoot(document.getElementById('root')!).render(
           duration: 3000,
         }}
       />
+      <GlobalConnectionAlert />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/room/:roomId" element={<RoomPage />} />
