@@ -237,7 +237,6 @@ export const useP2PManager = (
         cachedFileRef.current = null
       } else {
         // 如果没有 handle，说明是 Fallback 模式 (iPad/Input)，一定有 fileObject
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         file = fileObject!
         cachedFileRef.current = file
         // 清除 handle ref

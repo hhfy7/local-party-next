@@ -38,13 +38,19 @@ export const useRoomLogic = (roomId?: string) => {
           videoMeta: { duration: 0, fileSize: 0 },
         },
         (res: { success: boolean; error?: string }) => {
-          setIsAutoJoining(false)
-
+          // 成功回调，但不立即结束 AutoJoining
           if (res.success) {
             saveNickname(username)
             saveLastRoom(roomId)
-            if (!isAuto) toast.success(`欢迎加入, ${username}!`, { icon: '🎉' })
+            if (!isAuto) {
+              toast.success(`欢迎加入, ${username}!`, { icon: '🎉' })
+              setIsAutoJoining(false) // 手动加入立即结束 loading
+            }
+            // Auto Join 的 loading 状态将由 useEffect 监听 currentUser 变化来解除
           } else {
+            // 失败时，必须解除 loading 状态，否则会卡死在 LoadingScreen
+            setIsAutoJoining(false)
+
             if (isAuto) {
               console.warn('[Auto Join Failed]', res.error)
               if (res.error === '房间不存在') {
@@ -72,6 +78,20 @@ export const useRoomLogic = (roomId?: string) => {
     },
     [socket, roomId],
   )
+
+  // 4. 监听用户状态，智能解除 Loading
+  useEffect(() => {
+    // 只有当 currentUser 存在且已经在房间内时，才解除 loading
+    // 这避免了 "闪现" JoinModal 的问题
+    if (currentUser && isAutoJoining) {
+      console.log('[RoomLogic] Auto join success, currentUser synced.')
+      // 使用 setTimeout 避免在 Effect 中同步更新状态导致级联渲染 (linter warning)
+      const timer = setTimeout(() => {
+        setIsAutoJoining(false)
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [currentUser, isAutoJoining])
 
   // 3. 自动登录尝试
   useEffect(() => {

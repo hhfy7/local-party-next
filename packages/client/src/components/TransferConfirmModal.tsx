@@ -21,8 +21,20 @@ export const TransferConfirmModal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="animate-fade-in mx-4 w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-2xl">
-            📹
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+            <svg
+              className="h-8 w-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
           </div>
           <h3 className="mb-2 text-xl font-bold text-gray-900">收到视频分享</h3>
           <p className="text-sm text-gray-600">
