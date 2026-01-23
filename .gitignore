@@ -3,6 +3,10 @@
 /packages/server/node_modules/
 /data/
 \n# Local SSL Keys\nkeys/\n
-/p2perr/
 /.opencode/**
 /packages/shared/dist/**
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
