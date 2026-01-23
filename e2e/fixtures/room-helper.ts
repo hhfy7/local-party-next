@@ -64,8 +64,8 @@ export class RoomHelper {
       )
     }
 
-    // 确认已进入房间 (验证侧边栏看到 HostUser)
-    await expect(this.page.getByText('HostUser')).toBeVisible({
+    // 确认已进入房间 (验证侧边栏看到房主用户 - 支持中英文用户名)
+    await expect(this.page.getByText(/房主用户|HostUser/)).toBeVisible({
       timeout: 10000,
     })
   }

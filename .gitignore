@@ -10,3 +10,7 @@
 test-results/
 playwright-report/
 blob-report/
+
+# Playwright 截图基准文件（视觉回归测试）
+**/*-snapshots/
+**/*.spec.ts-snapshots/

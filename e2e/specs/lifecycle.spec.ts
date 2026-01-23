@@ -24,36 +24,36 @@ test.describe('Room Lifecycle & Sync', () => {
     const host = new RoomHelper(hostPage)
     const guest = new RoomHelper(guestPage)
 
-    // --- Step 1: Host 创建房间 ---
-    console.log('Host creating room...')
-    const { url } = await host.createRoom('HostUser')
-    console.log(`Room created at: ${url}`)
+    // --- 步骤1: 房主创建房间 ---
+    console.log('房主正在创建房间...')
+    const { url } = await host.createRoom('房主用户')
+    console.log(`房间已创建于: ${url}`)
 
-    // --- Step 2: Host 注入视频 ---
-    console.log('Host injecting video...')
+    // --- 步骤2: 房主注入视频 ---
+    console.log('房主正在注入视频文件...')
     await host.injectVideoFile(VIDEO_PATH)
 
-    // 验证 Host 播放器出现且暂停
+    // 验证房主播放器出现且处于暂停状态
     const hostVideo = hostPage.locator('video')
     await expect(hostVideo).toBeVisible()
     await expect(hostVideo).toHaveJSProperty('paused', true)
 
-    // --- Step 3: Guest 加入房间 ---
-    console.log('Guest joining room...')
-    await guest.joinRoom(url, 'GuestUser')
+    // --- 步骤3: 访客加入房间 ---
+    console.log('访客正在加入房间...')
+    await guest.joinRoom(url, '访客用户')
 
-    // 验证 Guest 也能看到(或等待)同步状态
-    await expect(guestPage.getByText('HostUser')).toBeVisible()
+    // 验证访客也能看到(或等待)同步状态
+    await expect(guestPage.getByText('房主用户')).toBeVisible()
 
-    // --- Step 4: Host 播放 (Sync) ---
-    console.log('Host pressing play...')
+    // --- 步骤4: 房主播放视频 (同步) ---
+    console.log('房主正在按下播放按钮...')
     // 修正: 使用 evaluate 调用原生 play 方法
     await hostVideo.evaluate((v: HTMLVideoElement) => v.play())
 
-    // 验证 Host 状态
+    // 验证房主播放器状态
     await expect(hostVideo).toHaveJSProperty('paused', false)
 
-    // 验证 Host 当前时间大于 0 (确实在播放)
+    // 验证房主当前播放时间大于 0 (确实在播放)
     // 稍等一小会儿让视频走几帧
     await hostPage.waitForTimeout(1000)
     const currentTime = await hostVideo.evaluate(
@@ -61,6 +61,6 @@ test.describe('Room Lifecycle & Sync', () => {
     )
     expect(currentTime).toBeGreaterThan(0)
 
-    console.log('Test passed!')
+    console.log('房间生命周期与同步测试通过！')
   })
 })

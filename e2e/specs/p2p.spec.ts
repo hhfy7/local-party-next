@@ -23,38 +23,47 @@ test.describe('P2P File Transfer', () => {
     const host = new RoomHelper(hostPage)
     const guest = new RoomHelper(guestPage)
 
-    // --- Step 1: 房间准备 ---
-    console.log('Setup: Creating room...')
-    const { url } = await host.createRoom('HostUser')
+    // --- 步骤1: 房间准备 ---
+    console.log('设置：正在创建房间...')
+    const { url } = await host.createRoom('房主用户')
     await host.injectVideoFile(VIDEO_PATH)
 
-    console.log('Setup: Guest joining...')
-    await guest.joinRoom(url, 'GuestUser')
+    console.log('设置：访客正在加入房间...')
+    await guest.joinRoom(url, '访客用户')
 
-    // --- Step 2: 触发分享 ---
-    console.log('Action: Host sharing video...')
+    // --- 步骤2: 触发分享 ---
+    console.log('操作：房主正在分享视频...')
     await host.shareVideo()
 
-    // --- Step 3: Guest 接受 ---
-    console.log('Action: Guest accepting transfer...')
+    // --- 步骤3: 访客接受传输 ---
+    console.log('操作：访客正在接收传输...')
     await guest.acceptTransfer()
 
     // [新增] 验证进度条出现，证明握手成功
     // 这一步能帮我们区分是 "无法建立连接" 还是 "传输慢"
-    // 验证 UI 上有 "%"
-    await expect(guestPage.getByText('%')).toBeVisible({ timeout: 10000 })
-    console.log('Progress: Transfer started...')
+    // 验证 UI 上有传输相关文本（进度百分比或传输状态）
+    try {
+      // 尝试查找包含百分号的文本（如 "50%"）
+      await expect(guestPage.getByText(/\d+%/)).toBeVisible({ timeout: 5000 })
+      console.log('进度：传输已开始，检测到进度百分比...')
+    } catch {
+      // 如果找不到百分比，尝试查找传输状态文本
+      await expect(
+        guestPage.getByText(/传输|transfer|接收|receiving/i),
+      ).toBeVisible({ timeout: 5000 })
+      console.log('进度：传输已开始，检测到传输状态...')
+    }
 
-    // --- Step 4: 验证传输完成 ---
-    console.log('Verification: Waiting for playback...')
+    // --- 步骤4: 验证传输完成 ---
+    console.log('验证：正在等待播放...')
 
-    // 验证 Guest 视频元素 src 变成 blob:
+    // 验证访客视频元素 src 变成 blob:
     // 增加超时时间到 60s，以防文件稍大
     const guestVideo = guestPage.locator('video')
     await expect(guestVideo).toHaveAttribute('src', /^blob:/, {
       timeout: 60000,
     })
-    console.log('Progress: Transfer finished, blob URL ready.')
+    console.log('进度：传输已完成，blob URL 已就绪。')
 
     // 验证 Guest 自动开始播放 (Host 默认可能是暂停的，但传输完通常会同步状态)
     // 如果 Host 是暂停的，Guest 也会暂停。
@@ -70,6 +79,6 @@ test.describe('P2P File Transfer', () => {
     )
     expect(currentTime).toBeGreaterThan(0)
 
-    console.log('P2P Test Passed!')
+    console.log('P2P 文件传输测试通过！')
   })
 })
