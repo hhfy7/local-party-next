@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useState, useRef } from 'react'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { VideoEmptyState } from '@/components/VideoEmptyState'
 
@@ -14,6 +14,7 @@ interface VideoStageProps {
   handleVideoLoaded: React.ReactEventHandler<HTMLVideoElement>
   handleDurationChange: (duration: number) => void
   subtitleUrl?: string | null
+  onFileDrop?: (file: File) => void
 }
 
 export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
@@ -30,17 +31,92 @@ export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
       handleVideoLoaded,
       handleDurationChange,
       subtitleUrl,
+      onFileDrop,
     },
     ref,
   ) => {
     const leftPanelBg = videoUrl ? 'bg-black' : 'bg-transparent'
+
+    // --- 拖拽交互逻辑 ---
+    const [isDragging, setIsDragging] = useState(false)
+    const dragCounter = useRef(0)
+
+    const handleDragEnter = (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      dragCounter.current += 1
+      if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+        setIsDragging(true)
+      }
+    }
+
+    const handleDragLeave = (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      dragCounter.current -= 1
+      if (dragCounter.current === 0) {
+        setIsDragging(false)
+      }
+    }
+
+    const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      // 必须阻止默认行为才能触发 drop
+    }
+
+    const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragging(false)
+      dragCounter.current = 0
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0]
+        onFileDrop?.(file)
+        e.dataTransfer.clearData()
+      }
+    }
 
     return (
       <div
         className={`relative w-full shrink-0 transition-all duration-700 md:h-full md:flex-1 ${
           videoUrl ? 'h-[35vh]' : 'h-auto min-h-[35vh]'
         } ${leftPanelBg}`}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
+        {/* --- 拖拽遮罩层 (Drop Overlay) --- */}
+        <div
+          className={`pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-indigo-500/20 backdrop-blur-md transition-all duration-300 ${
+            isDragging ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+          }`}
+        >
+          <div className="rounded-[2rem] border-4 border-dashed border-white/50 bg-white/20 p-12 text-center text-white shadow-2xl backdrop-blur-xl">
+            <svg
+              className="mx-auto mb-4 h-16 w-16 animate-bounce"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            <h3 className="text-2xl font-bold tracking-tight">
+              释放文件以上传
+            </h3>
+            <p className="mt-2 text-white/80">
+              支持视频 (.mp4, .mkv) 或字幕 (.srt)
+            </p>
+          </div>
+        </div>
+
         {/* Toggle Button (Desktop Only) */}
         <button
           onClick={onToggleSidebar}

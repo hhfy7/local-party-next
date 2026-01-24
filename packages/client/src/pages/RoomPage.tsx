@@ -95,6 +95,39 @@ export const RoomPage = () => {
     socket.emit('update_status', { duration, fileName })
   }
 
+  // --- 拖拽处理逻辑 ---
+  const handleFileDrop = (file: File) => {
+    const name = file.name.toLowerCase()
+
+    // 1. 检查是否为字幕文件
+    if (name.endsWith('.srt') || name.endsWith('.vtt')) {
+      // 只有房主可以上传字幕
+      if (!isHost) {
+        toast.error('只有房主可以上传字幕')
+        return
+      }
+      handleUploadSubtitle(file)
+      return
+    }
+
+    // 2. 检查是否为视频文件 (简单检查)
+    // 允许常见视频格式，或者 mime type 为 video/*
+    if (
+      name.endsWith('.mp4') ||
+      name.endsWith('.mkv') ||
+      name.endsWith('.webm') ||
+      name.endsWith('.mov') ||
+      file.type.startsWith('video/')
+    ) {
+      setVideoFile(file)
+      toast.success('已切换视频源', { icon: '🎬' })
+      return
+    }
+
+    // 3. 其他文件
+    toast.error('不支持的文件格式')
+  }
+
   // --- Handlers ---
   const handleUpdateName = () => {
     const trimmed = tempName.trim()
@@ -147,6 +180,7 @@ export const RoomPage = () => {
         handleVideoLoaded={handleVideoLoaded}
         handleDurationChange={handleDurationChange}
         subtitleUrl={subtitleUrl}
+        onFileDrop={handleFileDrop}
       />
 
       {/* --- 区域 B: 功能面板 (Content Panel) --- */}
