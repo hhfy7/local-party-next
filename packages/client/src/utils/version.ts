@@ -18,28 +18,22 @@ export interface AppVersion {
  */
 export const getAppVersion = (): AppVersion => {
   // 从全局变量读取，如果不存在则使用默认值
-  const version = (
+  const version =
     typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev-unknown'
-  ) as string
-  const commitHash = (
+  const commitHash =
     typeof __APP_COMMIT_HASH__ !== 'undefined' ? __APP_COMMIT_HASH__ : 'unknown'
-  ) as string
-  const commitMessage = (
+  const commitMessage =
     typeof __APP_COMMIT_MESSAGE__ !== 'undefined'
       ? __APP_COMMIT_MESSAGE__
       : 'unknown'
-  ) as string
-  const buildTime = (
+  const buildTime =
     typeof __APP_BUILD_TIME__ !== 'undefined'
       ? __APP_BUILD_TIME__
       : new Date().toISOString()
-  ) as string
-  const branch = (
+  const branch =
     typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'unknown'
-  ) as string
-  const hasChanges = (
+  const hasChanges =
     typeof __APP_HAS_CHANGES__ !== 'undefined' ? __APP_HAS_CHANGES__ : false
-  ) as boolean
 
   return {
     version,
@@ -110,24 +104,21 @@ export const isNewVersion = (oldCommitHash?: string): boolean => {
  * 延迟执行以避免与 Vite 热更新冲突
  */
 if (typeof window !== 'undefined') {
-
-
   // 将函数暴露到全局作用域，使用多个可能的名称
   // 主要名称
-  ;(window as any).getAppVersion = getAppVersion
-  ;(window as any).printVersionInfo = printVersionInfo
+  window.getAppVersion = getAppVersion
+  window.printVersionInfo = printVersionInfo
 
   // 备用名称（防止压缩问题）
-  ;(window as any).versionInfo = getAppVersion
-  ;(window as any).appVersion = getAppVersion
-  ;(window as any).printVersion = printVersionInfo
+  window.versionInfo = getAppVersion
+  window.appVersion = getAppVersion
+  window.printVersion = printVersionInfo
 
   // 创建一个更易访问的包装函数
-  ;(window as any).getVersion = () => {
+  window.getVersion = () => {
     return getAppVersion()
   }
 
   // 创建一个自包含的版本信息对象
-  ;(window as any).APP_VERSION = getAppVersion()
-
+  window.APP_VERSION = getAppVersion()
 }
