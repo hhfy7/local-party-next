@@ -1,6 +1,6 @@
-import { ShareDialog } from '@/components/ShareDialog'
-import { TransferConfirmModal } from '@/components/TransferConfirmModal'
-import { TransferProgress } from '@/components/TransferProgress'
+import { ShareDialog } from '@/components/modals/ShareDialog'
+import { TransferConfirmModal } from '@/components/modals/TransferConfirmModal'
+import { TransferProgress } from '@/components/transfer/TransferProgress'
 import type { useP2PManager } from '@/hooks/useP2PManager'
 import type { User, FileTransferMetadata } from '@local-party/shared/src/types'
 

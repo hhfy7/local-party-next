@@ -13,12 +13,12 @@ import { useP2PManager } from '@/hooks/useP2PManager'
 import { useSubtitle } from '@/hooks/useSubtitle'
 
 // Components
-import { JoinModal } from '@/components/JoinModal'
+import { JoinModal } from '@/components/modals/JoinModal'
 import {
   ErrorScreen,
   LoadingScreen,
   RoomNotFoundScreen,
-} from '@/components/StatusScreens'
+} from '@/components/ui/StatusScreens'
 
 // Room Components
 import { P2POverlay } from '@/components/room/P2POverlay'

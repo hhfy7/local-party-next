@@ -1,6 +1,6 @@
 import { forwardRef, useState, useRef } from 'react'
-import { VideoPlayer } from '@/components/VideoPlayer'
-import { VideoEmptyState } from '@/components/VideoEmptyState'
+import { VideoPlayer } from '@/components/video/VideoPlayer'
+import { VideoEmptyState } from '@/components/video/VideoEmptyState'
 import toast from 'react-hot-toast'
 
 interface VideoStageProps {

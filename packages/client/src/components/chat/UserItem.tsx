@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
-import { KickConfirmModal } from './KickConfirmModal'
+import { KickConfirmModal } from '@/components/modals/KickConfirmModal'
 import { User } from '@local-party/shared/src/types'
-import { PortalTooltip } from './PortalTooltip'
+import { PortalTooltip } from '@/components/ui/PortalTooltip'
 import { useAppStore } from '@/stores/useAppStore'
 import toast from 'react-hot-toast'
 

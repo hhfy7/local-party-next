@@ -1,6 +1,6 @@
 import { copyToClipboard } from '@/utils/clipboard'
-import { UserItem } from '@/components/UserItem'
-import { ChatPanel } from '@/components/ChatPanel'
+import { UserItem } from '@/components/chat/UserItem'
+import { ChatPanel } from '@/components/chat/ChatPanel'
 import { NameEditor } from './NameEditor'
 import toast from 'react-hot-toast'
 import type { User } from '@local-party/shared/src/types'
@@ -146,8 +146,19 @@ export const DesktopSidebar = ({
                     const file = e.target.files?.[0]
                     if (file) {
                       onUploadSubtitle(file)
-                      e.target.value = '' // Reset
                     }
+                    // 使用setTimeout在事件循环的下一个tick重置，避免直接修改
+                    setTimeout(() => {
+                      const input = e.target as HTMLInputElement
+                      input.value = ''
+                    }, 0)
+                  }}
+                  onClick={e => {
+                    // 使用setTimeout避免直接修改事件目标
+                    setTimeout(() => {
+                      const input = e.currentTarget as HTMLInputElement
+                      input.value = ''
+                    }, 0)
                   }}
                 />
                 <svg

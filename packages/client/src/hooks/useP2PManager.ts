@@ -12,7 +12,7 @@ import type {
 import type {
   TransferStep,
   TransferStatus,
-} from '@/components/TransferProgress'
+} from '@/components/transfer/TransferProgress'
 
 export const useP2PManager = (
   setVideoFile: (file: File) => void,

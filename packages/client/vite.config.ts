@@ -26,6 +26,7 @@ function getBuildInfo() {
     }
 
     // 否则尝试读取 Git 信息（本地构建时）
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { execSync } = require('child_process')
     const commitHash = execSync('git rev-parse --short HEAD', {
       encoding: 'utf8',
@@ -51,7 +52,8 @@ function getBuildInfo() {
       hasChanges,
     }
   } catch (error) {
-    console.warn('无法读取构建信息，使用默认值:', error.message)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.warn('无法读取构建信息，使用默认值:', errorMessage)
     return {
       version: 'unknown',
       commitHash: 'unknown',

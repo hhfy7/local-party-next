@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { LandingPage } from '@/pages/LandingPage'
 import { RoomPage } from '@/pages/RoomPage'
-import { GlobalConnectionAlert } from '@/components/GlobalConnectionAlert'
+import { GlobalConnectionAlert } from '@/components/ui/GlobalConnectionAlert'
 import { printVersionInfo } from '@/utils/version'
 import '@/index.css'
 
