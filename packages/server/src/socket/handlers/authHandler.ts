@@ -19,6 +19,10 @@ export const registerAuthHandlers = (
   socket.on(
     'create_room',
     ({ roomName, username, password, clientId, videoMeta }, callback) => {
+      console.log(
+        `[Create Request] User:${username} Pass:${password} Client:${clientId}`,
+      )
+
       // 校验密码格式：必须为4位数字（如果有设置）
       if (password && !/^\d{4}$/.test(password)) {
         if (callback) callback({ success: false, error: '密码必须是4位数字' })
@@ -94,7 +98,7 @@ export const registerAuthHandlers = (
         // 踢掉旧连接
         const oldSocket = io.sockets.sockets.get(duplicateUser.id)
         if (oldSocket) {
-          oldSocket.emit('error', '您已在其他标签页或设备登录')
+          oldSocket.emit('kicked', '您已在其他标签页或设备登录')
           oldSocket.disconnect(true)
         }
 
