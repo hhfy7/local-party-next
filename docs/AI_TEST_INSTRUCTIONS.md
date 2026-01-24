@@ -8,8 +8,10 @@
 **不要安装任何东西！** 环境已经配置好了。直接运行以下命令：
 
 ```bash
-# 运行所有测试 (Headless 模式)
-npx playwright test
+# 运行所有测试 (Headless 模式 跳过 p2p相关的)
+npx playwright test --grep-invert "P2P" 
+# 运行所有测试
+npx playwright test 
 
 # 运行特定测试文件
 npx playwright test e2e/specs/lifecycle.spec.ts
@@ -39,6 +41,7 @@ npx playwright test --ui
 | **TC-03** | **移动端视觉回归**<br>验证 Pixel 5 视口下 UI 不崩坏。<br>_(注：首次运行会生成基准截图)_                    | `e2e/specs/mobile-layout.spec.ts`    | ✅ 通过            |
 | **TC-04** | **视频播放控制**<br>验证点击/键盘跳转无暂停闪烁，且有聊天反馈。<br>_(注：方向键±5秒，显示"跳转到了XX:XX")_ | `e2e/specs/video-controls.spec.ts`   | ✅ 通过            |
 | **TC-05** | **移动端安全区域**<br>验证聊天面板不被 Home Bar 遮挡，输入框正确显示。<br>_(注：防止移动端布局回归)_       | `e2e/specs/mobile-safe-area.spec.ts` | ✅ 通过            |
+| **TC-06** | **踢人与封禁**<br>验证房主踢人，UI 弹窗确认，被踢用户 5 分钟内无法重连。<br>_(注：涵盖 PC/Mobile/Tablet)_  | `e2e/specs/kick-ban.spec.ts`         | ✅ 通过            |
 
 ### 2.3 网络环境注意事项
 

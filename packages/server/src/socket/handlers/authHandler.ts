@@ -35,6 +35,7 @@ export const registerAuthHandlers = (
         users: [newUser],
         videoMeta,
         messages: [],
+        bannedUsers: [],
       }
 
       roomStore.createRoom(newRoom)
@@ -66,6 +67,43 @@ export const registerAuthHandlers = (
         )
         if (callback) callback({ success: false, error: '房间不存在' })
         return
+      }
+
+      // --- 黑名单检查 (Ban Check) ---
+      const clientIp =
+        socket.handshake.address || socket.handshake.headers['x-forwarded-for']
+      const now = Date.now()
+      const BAN_DURATION = 5 * 60 * 1000 // 5分钟
+
+      // 1. 惰性清理过期黑名单
+      if (room.bannedUsers) {
+        room.bannedUsers = room.bannedUsers.filter(
+          ban => now - ban.bannedAt < BAN_DURATION,
+        )
+
+        // 2. 检查当前用户是否在黑名单中 (IP 或 用户名匹配)
+        // 注意：本地开发环境 IP 可能是 ::1 或 127.0.0.1，可能不准确，所以结合用户名辅助判断
+        const isBanned = room.bannedUsers.some(
+          ban => (clientIp && ban.ip === clientIp) || ban.username === username,
+        )
+
+        if (isBanned) {
+          const banRecord = room.bannedUsers.find(
+            ban =>
+              (clientIp && ban.ip === clientIp) || ban.username === username,
+          )
+          if (banRecord) {
+            const remainingTime = Math.ceil(
+              (BAN_DURATION - (now - banRecord.bannedAt)) / 1000 / 60,
+            )
+            if (callback)
+              callback({
+                success: false,
+                error: `您已被移出房间，请等待 ${remainingTime} 分钟后重试`,
+              })
+            return
+          }
+        }
       }
 
       // 限制房间人数最多为 2 人
@@ -134,6 +172,65 @@ export const registerAuthHandlers = (
       if (callback) callback({ success: true, roomId })
     },
   )
+
+  // --- 踢人 (Kick User) ---
+  socket.on('kick_user', ({ targetUserId }, callback) => {
+    const room = roomStore.findRoomByUserSocketId(socket.id)
+
+    // 1. 验证房间存在
+    if (!room) {
+      if (callback) callback({ success: false, error: '房间不存在' })
+      return
+    }
+
+    // 2. 验证是否为房主
+    if (room.hostId !== socket.id) {
+      if (callback)
+        callback({ success: false, error: '权限不足：只有房主可以踢人' })
+      return
+    }
+
+    // 3. 验证目标用户是否存在且不是自己
+    const targetUser = room.users.find(u => u.id === targetUserId)
+    if (!targetUser) {
+      if (callback) callback({ success: false, error: '目标用户不存在' })
+      return
+    }
+    if (targetUserId === socket.id) {
+      if (callback) callback({ success: false, error: '不能踢自己' })
+      return
+    }
+
+    // 4. 执行踢人逻辑
+    const targetSocket = io.sockets.sockets.get(targetUserId)
+    if (targetSocket) {
+      // 获取用户 IP
+      const targetIp =
+        targetSocket.handshake.address ||
+        targetSocket.handshake.headers['x-forwarded-for']
+
+      // 加入黑名单
+      if (!room.bannedUsers) {
+        room.bannedUsers = []
+      }
+      room.bannedUsers.push({
+        ip: Array.isArray(targetIp) ? targetIp[0] : targetIp || '',
+        username: targetUser.username,
+        bannedAt: Date.now(),
+      })
+
+      // 通知被踢用户
+      targetSocket.emit('kicked', '您已被房主移出房间')
+      // 强制断开连接
+      targetSocket.disconnect(true)
+    }
+
+    console.log(
+      `[Kick] ${room.users.find(u => u.id === socket.id)?.username} kicked ${targetUser.username} from Room:${room.id}`,
+    )
+
+    if (callback) callback({ success: true })
+  })
 
   // --- 断开连接 ---
   socket.on('disconnect', () => {

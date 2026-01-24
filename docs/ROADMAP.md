@@ -4,43 +4,13 @@
 
 ## 优先级总览
 
-1.  **[P0] 弹幕系统 (Danmaku)**: 投入小，回报大，立即提升“派对感”。
-2.  **[P1] 字幕同步 (Subtitle)**: 核心体验补全，解决“看不懂”的硬伤。
-3.  **[P2] 踢人权限 (Kick/Ban)**: 基础管理功能，防止恶意破坏。
-4.  **[P3] 多人 P2P 架构 (Multi-User P2P)**: 难度最高，涉及核心架构重写，建议放在最后攻坚。
+
+1. **[P1] 字幕同步 (Subtitle)**: 核心体验补全，解决“看不懂”的硬伤。
+2. **[P2] 踢人权限 (Kick/Ban)**: 基础管理功能，防止恶意破坏。
+3. **[P3] 多人 P2P 架构 (Multi-User P2P)**: 难度最高，涉及核心架构重写，建议放在最后攻坚。
 
 ---
 
-## 1. [P0] 轻量级弹幕系统 (Lightweight Danmaku)
-
-> **优先级**: ⭐⭐⭐⭐⭐ (最高)
-> **理由**: 纯前端实现，不改动后端架构，风险极低，但能瞬间让房间“活”起来，解决全屏无法交流的痛点。
-
-### 技术蓝图
-
-- **数据流**:
-  - 复用现有的 Socket `receive_message` 事件。
-  - 无需新增后端逻辑，完全由前端消费消息数据。
-- **UI 层级**:
-  - 在 `VideoStage` 的 `<video>` 标签上方覆盖一个 `absolute` 定位的透明层 (`pointer-events-none`)，命名为 `DanmakuOverlay`。
-- **渲染逻辑**:
-  1.  监听消息列表 (`messages`) 的变化。
-  2.  当新消息到达 且 `isPlaying === true` 时，创建一个临时弹幕对象：
-      ```typescript
-      {
-        id: string,
-        text: string,
-        top: number, // 随机 10% - 80%
-        duration: number // 5s - 10s
-      }
-      ```
-  3.  使用 CSS Animation (`translateX` 从 100% 到 -100%) 让文字横向飘过屏幕。
-  4.  动画结束后 (`onAnimationEnd`) 从 DOM 状态中移除该元素，避免内存泄漏。
-- **难点**:
-  - 处理大量弹幕时的 CSS 动画性能（建议使用 `will-change: transform`）。
-  - 避免弹幕遮挡字幕区域。
-
----
 
 ## 2. [P1] 外挂字幕同步 (Subtitle Sync)
 

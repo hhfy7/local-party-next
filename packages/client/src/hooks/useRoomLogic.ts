@@ -93,6 +93,23 @@ export const useRoomLogic = (roomId?: string) => {
     }
   }, [currentUser, isAutoJoining])
 
+  // 5. 监听被踢事件
+  useEffect(() => {
+    if (!socket) return
+
+    const onKicked = (reason: string) => {
+      toast.error(reason, { duration: 5000, icon: '🚫' })
+      saveLastRoom('') // 清除房间记录防止自动重连
+      navigate('/') // 强制跳转回首页
+    }
+
+    socket.on('kicked', onKicked)
+
+    return () => {
+      socket.off('kicked', onKicked)
+    }
+  }, [socket, navigate])
+
   // 3. 自动登录尝试
   useEffect(() => {
     if (

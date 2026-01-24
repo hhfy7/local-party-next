@@ -51,6 +51,7 @@ export interface ServerToClientEvents {
   receive_sync: (action: SyncAction, user: string) => void
   receive_heartbeat: (payload: HeartbeatPayload) => void // 新增
   video_warning: (msg: string) => void
+  kicked: (reason: string) => void
   error: (msg: string) => void
 
   // P2P视频分享
@@ -103,6 +104,10 @@ export interface ClientToServerEvents {
   send_sync: (action: SyncAction) => void
   send_heartbeat: (payload: HeartbeatPayload) => void // 新增
   update_status: (data: { duration: number; fileName: string }) => void
+  kick_user: (
+    data: { targetUserId: string },
+    callback?: (res: { success: boolean; error?: string }) => void,
+  ) => void
 
   // P2P视频分享
   send_transfer_offer: (
@@ -134,6 +139,11 @@ export interface RoomState {
   videoMeta: VideoMeta
   messages: ChatMessage[]
   lastAction?: SyncAction
+  bannedUsers: {
+    ip: string
+    username: string
+    bannedAt: number
+  }[]
 }
 
 // WebRTC 信令相关

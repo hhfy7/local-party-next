@@ -74,6 +74,7 @@ export const MobileView = ({
                   user={u}
                   isHost={u.id === hostId}
                   isMe={u.id === currentUser?.id}
+                  amIHost={isHost}
                   hostDuration={
                     users.find(user => user.id === hostId)?.videoDuration
                   }

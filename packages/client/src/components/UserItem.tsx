@@ -1,6 +1,9 @@
 import { useState, useRef } from 'react'
+import { KickConfirmModal } from './KickConfirmModal'
 import { User } from '@local-party/shared/src/types'
 import { PortalTooltip } from './PortalTooltip'
+import { useAppStore } from '@/stores/useAppStore'
+import toast from 'react-hot-toast'
 
 // Helper
 const formatDuration = (seconds: number) => {
@@ -13,8 +16,9 @@ const formatDuration = (seconds: number) => {
 
 interface UserItemProps {
   user: User
-  isHost: boolean
+  isHost: boolean // 目标用户是房主
   isMe: boolean
+  amIHost: boolean // 我(当前视角)是房主
   hostDuration?: number
   variant?: 'horizontal' | 'vertical'
   transferStatus?: 'pending' | 'completed' | null
@@ -24,6 +28,7 @@ export const UserItem = ({
   user,
   isHost,
   isMe,
+  amIHost,
   hostDuration,
   variant = 'horizontal',
   transferStatus,
@@ -31,12 +36,34 @@ export const UserItem = ({
   const [isHovered, setIsHovered] = useState(false)
   const itemRef = useRef<HTMLDivElement>(null)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const { socket } = useAppStore()
+  const [isKickModalOpen, setIsKickModalOpen] = useState(false)
 
   const handleMouseEnter = () => {
     if (itemRef.current) {
       setRect(itemRef.current.getBoundingClientRect())
       setIsHovered(true)
     }
+  }
+
+  const handleKickClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsKickModalOpen(true)
+  }
+
+  const handleConfirmKick = () => {
+    if (!socket) return
+
+    const toastId = toast.loading('正在移除...')
+    socket.emit('kick_user', { targetUserId: user.id }, res => {
+      if (res.success) {
+        toast.success('已移除', { id: toastId })
+        setIsKickModalOpen(false)
+      } else {
+        toast.error(res.error || '移除失败', { id: toastId })
+        setIsKickModalOpen(false)
+      }
+    })
   }
 
   // 状态判定逻辑
@@ -159,11 +186,41 @@ export const UserItem = ({
             </div>
           </div>
         </div>
-        {user.fileName && (
-          <div className="max-w-[100px] truncate rounded-lg bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-500">
-            {user.fileName}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {user.fileName && (
+            <div className="max-w-[100px] truncate rounded-lg bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-500">
+              {user.fileName}
+            </div>
+          )}
+          {amIHost && !isMe && (
+            <button
+              onClick={handleKickClick}
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-500 transition-colors hover:bg-red-100 active:scale-95"
+              title="移出房间"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <KickConfirmModal
+          isOpen={isKickModalOpen}
+          user={user}
+          onConfirm={handleConfirmKick}
+          onCancel={() => setIsKickModalOpen(false)}
+        />
       </div>
     )
   }
@@ -172,7 +229,7 @@ export const UserItem = ({
     <>
       <div
         ref={itemRef}
-        className="relative flex shrink-0 cursor-help items-center gap-2 rounded-2xl border border-gray-100 bg-white py-2 pr-4 pl-2.5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
+        className="group relative flex shrink-0 cursor-default items-center gap-2 rounded-2xl border border-gray-100 bg-white py-2 pr-9 pl-2.5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -191,7 +248,36 @@ export const UserItem = ({
         )}
 
         {statusIcon}
+
+        {amIHost && !isMe && (
+          <button
+            onClick={handleKickClick}
+            className="invisible absolute top-1/2 right-1.5 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-gray-400 opacity-0 transition-all group-hover:visible group-hover:opacity-100 hover:bg-red-500 hover:text-white active:scale-95"
+            title="移除用户"
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        )}
       </div>
+
+      <KickConfirmModal
+        isOpen={isKickModalOpen}
+        user={user}
+        onConfirm={handleConfirmKick}
+        onCancel={() => setIsKickModalOpen(false)}
+      />
 
       {/* Portal Tooltip (只在 Horizontal 模式下需要，Vertical 模式直接显示了信息) */}
       <PortalTooltip
