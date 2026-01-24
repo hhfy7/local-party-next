@@ -9,9 +9,9 @@
 
 ```bash
 # 运行所有测试 (Headless 模式 跳过 p2p相关的)
-npx playwright test --grep-invert "P2P" 
+npx playwright test --grep-invert "P2P"
 # 运行所有测试
-npx playwright test 
+npx playwright test
 
 # 运行特定测试文件
 npx playwright test e2e/specs/lifecycle.spec.ts

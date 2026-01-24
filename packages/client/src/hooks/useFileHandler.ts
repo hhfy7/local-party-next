@@ -41,7 +41,18 @@ export const useFileHandler = (roomId?: string) => {
           types: [
             {
               description: 'Video Files',
-              accept: { 'video/*': ['.mp4', '.mkv', '.webm'] },
+              accept: {
+                'video/*': [
+                  '.mp4',
+                  '.mkv',
+                  '.webm',
+                  '.mov',
+                  '.avi',
+                  '.wmv',
+                  '.flv',
+                  '.m4v',
+                ],
+              },
             },
           ],
           multiple: false,

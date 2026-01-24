@@ -1,6 +1,7 @@
 import { forwardRef, useState, useRef } from 'react'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { VideoEmptyState } from '@/components/VideoEmptyState'
+import toast from 'react-hot-toast'
 
 interface VideoStageProps {
   videoUrl: string | null
@@ -76,6 +77,27 @@ export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
         onFileDrop?.(file)
         e.dataTransfer.clearData()
       }
+    }
+
+    const handleVideoError = () => {
+      const video = ref && 'current' in ref ? ref.current : null
+      const error = video?.error
+
+      let msg = '视频播放出错'
+      if (error) {
+        switch (error.code) {
+          case 3: // MEDIA_ERR_DECODE
+            msg = '解码失败：浏览器不支持此视频编码 (如 H.265/ProRes)'
+            break
+          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+            msg = '格式不支持：浏览器无法播放此容器格式 (如 AVI/WMV)'
+            break
+          default:
+            msg = `播放错误 (Code: ${error.code})`
+        }
+      }
+      console.error('[VideoStage]', msg, error)
+      toast.error(msg, { duration: 5000 })
     }
 
     return (
@@ -173,6 +195,7 @@ export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
               onLoadedMetadata={handleVideoLoaded}
               onDurationChange={handleDurationChange}
               subtitleUrl={subtitleUrl}
+              onError={handleVideoError}
             />
           )}
         </div>

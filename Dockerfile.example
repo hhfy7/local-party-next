@@ -1,0 +1,48 @@
+# Docker 构建示例 - 支持版本信息注入
+
+# 构建参数（在 CI/CD 中设置）
+ARG GIT_COMMIT_HASH=unknown
+ARG GIT_COMMIT_MESSAGE=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_HAS_CHANGES=false
+
+FROM node:18-alpine
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制 package 文件
+COPY package.json pnpm-lock.yaml ./
+COPY packages/client/package.json ./packages/client/
+COPY packages/server/package.json ./packages/server/
+COPY packages/shared/package.json ./packages/shared/
+
+# 安装 pnpm
+RUN npm install -g pnpm
+
+# 安装依赖
+RUN pnpm install
+
+# 复制源代码
+COPY . .
+
+# 设置构建环境变量
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+ENV GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_HAS_CHANGES=${GIT_HAS_CHANGES}
+
+# 构建前端
+RUN cd packages/client && pnpm build
+
+# 构建后端
+RUN cd packages/server && pnpm build
+
+# 构建共享包
+RUN cd packages/shared && pnpm build
+
+# 暴露端口
+EXPOSE 4000 5173
+
+# 启动命令
+CMD ["node", "packages/server/dist/index.js"]

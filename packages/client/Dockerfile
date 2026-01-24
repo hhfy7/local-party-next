@@ -1,6 +1,18 @@
 # --- Build Stage ---
 FROM node:20-alpine AS builder
 
+# 构建参数（用于版本信息注入）
+ARG GIT_COMMIT_HASH=unknown
+ARG GIT_COMMIT_MESSAGE=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_HAS_CHANGES=false
+
+# 设置环境变量
+ENV GIT_COMMIT_HASH=$GIT_COMMIT_HASH
+ENV GIT_COMMIT_MESSAGE=$GIT_COMMIT_MESSAGE
+ENV GIT_BRANCH=$GIT_BRANCH
+ENV GIT_HAS_CHANGES=$GIT_HAS_CHANGES
+
 WORKDIR /app
 RUN npm install -g pnpm
 

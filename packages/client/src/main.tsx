@@ -5,7 +5,11 @@ import { Toaster } from 'react-hot-toast'
 import { LandingPage } from '@/pages/LandingPage'
 import { RoomPage } from '@/pages/RoomPage'
 import { GlobalConnectionAlert } from '@/components/GlobalConnectionAlert'
+import { printVersionInfo } from '@/utils/version'
 import '@/index.css'
+
+// 打印版本信息（生产环境自动执行）
+printVersionInfo()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

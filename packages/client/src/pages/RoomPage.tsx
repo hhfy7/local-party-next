@@ -110,17 +110,23 @@ export const RoomPage = () => {
       return
     }
 
-    // 2. 检查是否为视频文件 (简单检查)
-    // 允许常见视频格式，或者 mime type 为 video/*
+    // 2. 检查是否为视频文件 (放宽检查，允许浏览器尝试播放)
+    const videoExtensions = [
+      '.mp4',
+      '.mkv',
+      '.webm',
+      '.mov',
+      '.avi',
+      '.wmv',
+      '.flv',
+      '.m4v',
+    ]
     if (
-      name.endsWith('.mp4') ||
-      name.endsWith('.mkv') ||
-      name.endsWith('.webm') ||
-      name.endsWith('.mov') ||
+      videoExtensions.some(ext => name.endsWith(ext)) ||
       file.type.startsWith('video/')
     ) {
       setVideoFile(file)
-      toast.success('已切换视频源', { icon: '🎬' })
+      toast.success('已切换视频源 (若黑屏请检查编码)', { icon: '🎬' })
       return
     }
 

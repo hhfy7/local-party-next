@@ -26,6 +26,11 @@ services:
     build:
       context: .
       dockerfile: packages/client/Dockerfile
+      args:
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_COMMIT_MESSAGE: ${GIT_COMMIT_MESSAGE:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_HAS_CHANGES: ${GIT_HAS_CHANGES:-false}
     image: local-party-frontend:${TAG:-latest}
     container_name: lp-frontend
     restart: always
