@@ -29,7 +29,16 @@ export const getAppVersion = (): AppVersion => {
   const buildTime =
     typeof __APP_BUILD_TIME__ !== 'undefined'
       ? __APP_BUILD_TIME__
-      : new Date().toISOString()
+      : new Date().toLocaleString('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
   const branch =
     typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'unknown'
   const hasChanges =

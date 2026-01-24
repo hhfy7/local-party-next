@@ -4,66 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'path'
 
-// 获取构建信息 - Docker 友好的方式
-function getBuildInfo() {
-  try {
-    // 首先尝试从环境变量获取（Docker 构建时）
-    const envHash = process.env.GIT_COMMIT_HASH
-    const envMessage = process.env.GIT_COMMIT_MESSAGE
-    const envBranch = process.env.GIT_BRANCH
-    const envHasChanges = process.env.GIT_HAS_CHANGES === 'true'
-
-    if (envHash) {
-      console.log('Using environment variables for build info')
-      return {
-        version: `${envBranch || 'unknown'}-${envHash}${envHasChanges ? '-docker' : ''}`,
-        commitHash: envHash,
-        commitMessage: envMessage || 'unknown',
-        buildTime: new Date().toISOString(),
-        branch: envBranch || 'unknown',
-        hasChanges: envHasChanges,
-      }
-    }
-
-    // 否则尝试读取 Git 信息（本地构建时）
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { execSync } = require('child_process')
-    const commitHash = execSync('git rev-parse --short HEAD', {
-      encoding: 'utf8',
-    }).trim()
-    const commitMessage = execSync('git log -1 --pretty=%B', {
-      encoding: 'utf8',
-    })
-      .split('\n')[0]
-      .trim()
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
-      encoding: 'utf8',
-    }).trim()
-    const buildTime = new Date().toISOString()
-    const hasChanges =
-      execSync('git status --porcelain', { encoding: 'utf8' }).length > 0
-
-    return {
-      version: `${branch}-${commitHash}${hasChanges ? '-dirty' : ''}`,
-      commitHash,
-      commitMessage,
-      buildTime,
-      branch,
-      hasChanges,
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    console.warn('无法读取构建信息，使用默认值:', errorMessage)
-    return {
-      version: 'unknown',
-      commitHash: 'unknown',
-      commitMessage: 'unknown',
-      buildTime: new Date().toISOString(),
-      branch: 'unknown',
-      hasChanges: false,
-    }
-  }
-}
+// 使用统一的构建信息工具函数
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { getBuildInfo } = require('./scripts/build-info-utils.js')
 
 // 获取构建信息
 const buildInfo = getBuildInfo()
