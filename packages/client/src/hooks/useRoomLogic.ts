@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppStore } from '@/stores/useAppStore'
-import { getNickname, saveNickname, saveLastRoom } from '@/utils/storage'
+import {
+  getNickname,
+  saveNickname,
+  saveLastRoom,
+  getClientId,
+} from '@/utils/storage'
 import toast from 'react-hot-toast'
 
 export const useRoomLogic = (roomId?: string) => {
@@ -41,6 +46,7 @@ export const useRoomLogic = (roomId?: string) => {
         {
           username,
           roomId,
+          clientId: getClientId(),
           password: password || '',
           token: inviteToken, // 优先使用 Token
           videoMeta: { duration: 0, fileSize: 0 },
@@ -147,6 +153,7 @@ export const useRoomLogic = (roomId?: string) => {
       {
         username,
         roomName: `${username}的房间`,
+        clientId: getClientId(),
         password: '',
         videoMeta: { duration: 0, fileSize: 0 },
       },

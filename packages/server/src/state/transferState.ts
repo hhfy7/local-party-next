@@ -7,6 +7,7 @@ export const hostTransferTimers = new Map<
   {
     timer: NodeJS.Timeout
     expectedHostName: string
+    expectedHostClientId?: string
   }
 >()
 

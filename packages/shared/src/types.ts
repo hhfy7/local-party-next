@@ -1,6 +1,7 @@
 export interface User {
   id: string
   username: string
+  clientId: string // 浏览器唯一ID
   roomId: string
   videoDuration?: number // 视频时长 (秒)
   fileName?: string // 文件名
@@ -83,6 +84,7 @@ export interface ClientToServerEvents {
     data: {
       roomId: string
       username: string
+      clientId: string // 新增
       password?: string
       token?: string
       videoMeta: VideoMeta
@@ -105,6 +107,7 @@ export interface ClientToServerEvents {
     data: {
       roomName: string
       username: string
+      clientId: string // 新增
       password?: string
       videoMeta: VideoMeta
     },
@@ -166,8 +169,12 @@ export interface RoomState {
   bannedUsers: {
     ip: string
     username: string
+    clientId?: string // 新增：支持按 ID 封禁
     bannedAt: number
   }[]
+  trustedClients: Set<string> // 免密白名单 (Client IDs)
+  bannedClients: Set<string> // 黑名单 (Client IDs)
+  createdById: string // 初始房主 ID
 }
 
 // WebRTC 信令相关

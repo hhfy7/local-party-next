@@ -7,6 +7,7 @@ import {
   saveLastRoom,
   getNickname,
   saveNickname,
+  getClientId,
 } from '@/utils/storage'
 import toast from 'react-hot-toast'
 
@@ -104,6 +105,7 @@ export const LandingPage = () => {
       {
         username,
         roomName: roomName || `${username}的房间`,
+        clientId: getClientId(),
         password,
         videoMeta: mockMeta,
       },
@@ -132,6 +134,7 @@ export const LandingPage = () => {
       {
         username,
         roomId: targetRoomId,
+        clientId: getClientId(),
         password,
         videoMeta: mockMeta,
       },

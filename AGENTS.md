@@ -170,4 +170,4 @@ const SYNC_THRESHOLD = 2000 // 2秒误差容忍
 
 ---
 
-**最后检查**: 修改前运行 `pnpm lint` 和 `pnpm build` 确保代码质量。
+**最后检查**: 修改前运行 `pnpm lint` 和 `pnpm build` 确保代码质量。并且使用中文回复

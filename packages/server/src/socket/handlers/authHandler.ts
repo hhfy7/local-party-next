@@ -18,7 +18,7 @@ export const registerAuthHandlers = (
   // --- 创建房间 ---
   socket.on(
     'create_room',
-    ({ roomName, username, password, videoMeta }, callback) => {
+    ({ roomName, username, password, clientId, videoMeta }, callback) => {
       // 校验密码格式：必须为4位数字（如果有设置）
       if (password && !/^\d{4}$/.test(password)) {
         if (callback) callback({ success: false, error: '密码必须是4位数字' })
@@ -31,6 +31,7 @@ export const registerAuthHandlers = (
       const newUser: User = {
         id: socket.id,
         username: safeUsername,
+        clientId, // Store clientId
         roomId,
       }
 
@@ -43,6 +44,9 @@ export const registerAuthHandlers = (
         videoMeta,
         messages: [],
         bannedUsers: [],
+        trustedClients: new Set([clientId]), // Add creator to trusted
+        bannedClients: new Set(),
+        createdById: clientId, // Record creator ID
       }
 
       roomStore.createRoom(newRoom)
@@ -63,7 +67,7 @@ export const registerAuthHandlers = (
   // --- 加入房间 ---
   socket.on(
     'join_room',
-    ({ roomId, username, password, token, videoMeta }, callback) => {
+    ({ roomId, username, password, token, clientId, videoMeta }, callback) => {
       const room = roomStore.getRoom(roomId)
 
       if (!room) {
@@ -76,28 +80,62 @@ export const registerAuthHandlers = (
         return
       }
 
+      // --- 顶号逻辑 (Session Replacement) ---
+      // 检查房间内是否已存在相同 clientId 的用户
+      const duplicateUserIndex = room.users.findIndex(
+        u => u.clientId === clientId,
+      )
+      if (duplicateUserIndex !== -1) {
+        const duplicateUser = room.users[duplicateUserIndex]
+        console.log(
+          `[Session Replacement] Client ${clientId} is replacing socket ${duplicateUser.id}`,
+        )
+
+        // 踢掉旧连接
+        const oldSocket = io.sockets.sockets.get(duplicateUser.id)
+        if (oldSocket) {
+          oldSocket.emit('error', '您已在其他标签页或设备登录')
+          oldSocket.disconnect(true)
+        }
+
+        // 从房间移除旧用户 (稍后会作为新用户加入)
+        room.users.splice(duplicateUserIndex, 1)
+        io.to(roomId).emit('user_left', duplicateUser.id)
+      }
+
       // --- 黑名单检查 (Ban Check) ---
+      // 1. Check Client ID (Strong Ban)
+      if (room.bannedClients && room.bannedClients.has(clientId)) {
+        if (callback)
+          callback({ success: false, error: '您已被禁止进入此房间' })
+        return
+      }
+
       const clientIp =
         socket.handshake.address || socket.handshake.headers['x-forwarded-for']
       const now = Date.now()
       const BAN_DURATION = 5 * 60 * 1000 // 5分钟
 
-      // 1. 惰性清理过期黑名单
+      // 2. 惰性清理过期黑名单 (IP/Name)
       if (room.bannedUsers) {
         room.bannedUsers = room.bannedUsers.filter(
           ban => now - ban.bannedAt < BAN_DURATION,
         )
 
-        // 2. 检查当前用户是否在黑名单中 (IP 或 用户名匹配)
-        // 注意：本地开发环境 IP 可能是 ::1 或 127.0.0.1，可能不准确，所以结合用户名辅助判断
+        // 3. 检查当前用户是否在黑名单中 (IP 或 用户名匹配)
         const isBanned = room.bannedUsers.some(
-          ban => (clientIp && ban.ip === clientIp) || ban.username === username,
+          ban =>
+            (clientIp && ban.ip === clientIp) ||
+            ban.username === username ||
+            (ban.clientId && ban.clientId === clientId),
         )
 
         if (isBanned) {
           const banRecord = room.bannedUsers.find(
             ban =>
-              (clientIp && ban.ip === clientIp) || ban.username === username,
+              (clientIp && ban.ip === clientIp) ||
+              ban.username === username ||
+              (ban.clientId && ban.clientId === clientId),
           )
           if (banRecord) {
             const remainingTime = Math.ceil(
@@ -113,7 +151,7 @@ export const registerAuthHandlers = (
         }
       }
 
-      // 限制房间人数最多为 2 人
+      // 限制房间人数最多为 2 人 (顶号逻辑已处理重复，这里只校验剩余名额)
       if (room.users.length >= 2) {
         if (callback) callback({ success: false, error: '房间已满 (上限2人)' })
         return
@@ -121,18 +159,28 @@ export const registerAuthHandlers = (
 
       roomStore.cancelCleanup(roomId)
 
-      // --- 密码/Token 验证 ---
+      // --- 密码/Token/白名单 验证 ---
       let isVerified = false
 
-      // 1. 如果有 Token，尝试 Token 验证
-      if (token && verifyToken(token, roomId)) {
+      // 1. 白名单免密 (Trusted Client)
+      if (room.trustedClients && room.trustedClients.has(clientId)) {
         isVerified = true
       }
-      // 2. 如果 Token 验证失败（或没有），则尝试密码验证
+      // 2. Token 验证
+      else if (token && verifyToken(token, roomId)) {
+        isVerified = true
+        // 验证通过，加入白名单
+        if (!room.trustedClients) room.trustedClients = new Set()
+        room.trustedClients.add(clientId)
+      }
+      // 3. 密码验证
       else {
-        // 如果房间没有设置密码，或者密码匹配，则通过
+        // 如果房间没有设置密码，或者密码匹配
         if (!room.password || room.password === password) {
           isVerified = true
+          // 验证通过，加入白名单
+          if (!room.trustedClients) room.trustedClients = new Set()
+          room.trustedClients.add(clientId)
         }
       }
 
@@ -142,26 +190,62 @@ export const registerAuthHandlers = (
         return
       }
 
-      // --- 房主重连检测 ---
+      // --- 房主重连检测 (Host Reconnect) ---
       const pendingProtection = hostTransferTimers.get(roomId)
       const safeUsername = username.substring(0, MAX_USERNAME_LEN)
 
+      let shouldRecoverHost = false
+
+      // 场景 A: 房主掉线保护期内重连 (优先使用 ClientID 匹配)
+      if (pendingProtection) {
+        // 如果 ClientID 匹配（最安全）
+        if (
+          pendingProtection.expectedHostClientId &&
+          pendingProtection.expectedHostClientId === clientId
+        ) {
+          shouldRecoverHost = true
+        }
+        // 回退兼容：如果没有记录 ClientID (旧数据)，则匹配用户名
+        else if (
+          !pendingProtection.expectedHostClientId &&
+          pendingProtection.expectedHostName === safeUsername
+        ) {
+          shouldRecoverHost = true
+        }
+      }
+
+      // 场景 B: 房间无主，且我是创建者 (兜底策略)
       if (
-        pendingProtection &&
-        pendingProtection.expectedHostName === safeUsername
+        !shouldRecoverHost &&
+        room.createdById === clientId && // 我是创建者
+        !room.users.some(u => u.id === room.hostId) // 且房主不在房间内
       ) {
-        console.log(`[Host Reconnect] 房主 ${safeUsername} 重新连接，取消移交`)
-        clearTimeout(pendingProtection.timer)
-        hostTransferTimers.delete(roomId)
+        shouldRecoverHost = true
+        // 如果有保护倒计时，也清理掉
+        if (hostTransferTimers.has(roomId)) {
+          clearTimeout(hostTransferTimers.get(roomId)!.timer)
+          hostTransferTimers.delete(roomId)
+        }
+      }
+
+      if (shouldRecoverHost) {
+        console.log(
+          `[Host Reconnect] 房主 ${safeUsername} 归位 (ID: ${clientId})`,
+        )
+        if (pendingProtection) {
+          clearTimeout(pendingProtection.timer)
+          hostTransferTimers.delete(roomId)
+        }
 
         // 恢复房主身份
         room.hostId = socket.id
-        io.to(roomId).emit('host_updated', socket.id) // 通知其他人（如果有）
+        io.to(roomId).emit('host_updated', socket.id) // 通知其他人
       }
 
       const newUser: User = {
         id: socket.id,
         username: safeUsername,
+        clientId,
         roomId,
       }
 
@@ -250,20 +334,47 @@ export const registerAuthHandlers = (
         targetSocket.handshake.address ||
         targetSocket.handshake.headers['x-forwarded-for']
 
-      // 加入黑名单
+      // 加入 IP 黑名单 (Legacy)
       if (!room.bannedUsers) {
         room.bannedUsers = []
       }
       room.bannedUsers.push({
         ip: Array.isArray(targetIp) ? targetIp[0] : targetIp || '',
         username: targetUser.username,
+        clientId: targetUser.clientId, // Store ID
         bannedAt: Date.now(),
       })
+
+      // 加入 Client ID 黑名单 (Strong Ban)
+      if (!room.bannedClients) room.bannedClients = new Set()
+      if (targetUser.clientId) {
+        room.bannedClients.add(targetUser.clientId)
+        // 同时也从白名单移除
+        if (room.trustedClients) room.trustedClients.delete(targetUser.clientId)
+      }
 
       // 通知被踢用户
       targetSocket.emit('kicked', '您已被房主移出房间')
       // 强制断开连接
       targetSocket.disconnect(true)
+
+      // 查找并断开该 ClientID 下的所有连接 (防止多标签页苟活)
+      if (targetUser.clientId) {
+        for (const user of room.users) {
+          if (
+            user.clientId === targetUser.clientId &&
+            user.id !== targetUserId
+          ) {
+            const otherSocket = io.sockets.sockets.get(user.id)
+            if (otherSocket) {
+              otherSocket.emit('kicked', '您已被房主移出房间')
+              otherSocket.disconnect(true)
+            }
+          }
+        }
+        // 清理 users 列表 (虽然 disconnect 会触发 user_left，但主动清理更保险)
+        room.users = room.users.filter(u => u.clientId !== targetUser.clientId)
+      }
     }
 
     console.log(
@@ -281,6 +392,7 @@ export const registerAuthHandlers = (
       if (userIndex === -1) return
 
       const username = room.users[userIndex].username
+      const clientId = room.users[userIndex].clientId // Get clientId
       const isHost = room.hostId === socket.id
 
       room.users.splice(userIndex, 1)
@@ -299,6 +411,14 @@ export const registerAuthHandlers = (
           // 确认保护期已过且房主确实不在
           if (hostTransferTimers.has(room.id)) {
             hostTransferTimers.delete(room.id)
+
+            // 再次检查是否真的没房主了 (防止快速重连已经恢复了)
+            if (
+              currentRoom.hostId !== socket.id &&
+              currentRoom.users.some(u => u.id === currentRoom.hostId)
+            ) {
+              return // Host already recovered or transferred
+            }
 
             if (currentRoom.users.length > 0) {
               const newHost = currentRoom.users[0]
@@ -330,6 +450,7 @@ export const registerAuthHandlers = (
         hostTransferTimers.set(room.id, {
           timer,
           expectedHostName: username,
+          expectedHostClientId: clientId, // Store ClientID for safe recovery
         })
       } else {
         // 非房主离开：常规处理
