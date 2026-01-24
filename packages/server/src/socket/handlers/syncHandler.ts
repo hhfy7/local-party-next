@@ -45,6 +45,27 @@ export const registerSyncHandlers = (
     }
   })
 
+  // --- 字幕同步 (Host Only) ---
+  socket.on('sync_subtitle', data => {
+    const room = roomStore.findRoomByUserSocketId(socket.id)
+    if (room && room.hostId === socket.id) {
+      room.subtitle = data
+      io.to(room.id).emit('subtitle_synced', data)
+
+      const user = room.users.find(u => u.id === socket.id)
+      const sysMsg = {
+        id: Date.now().toString(),
+        type: 'system' as const,
+        userId: 'system',
+        username: user?.username || 'System',
+        content: `房主上传了字幕: ${data.name}`,
+        timestamp: Date.now(),
+      }
+      room.messages.push(sysMsg)
+      io.to(room.id).emit('receive_message', sysMsg)
+    }
+  })
+
   // --- 视频同步指令 (仅限房主) ---
   socket.on('send_sync', (action: SyncAction) => {
     const room = roomStore.findRoomByUserSocketId(socket.id)

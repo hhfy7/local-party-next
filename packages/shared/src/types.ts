@@ -50,6 +50,11 @@ export interface ServerToClientEvents {
   receive_message: (msg: ChatMessage) => void
   receive_sync: (action: SyncAction, user: string) => void
   receive_heartbeat: (payload: HeartbeatPayload) => void // 新增
+  subtitle_synced: (data: {
+    content: string
+    name: string
+    type: 'vtt' | 'srt'
+  }) => void
   video_warning: (msg: string) => void
   kicked: (reason: string) => void
   error: (msg: string) => void
@@ -103,6 +108,11 @@ export interface ClientToServerEvents {
   send_message: (content: string) => void
   send_sync: (action: SyncAction) => void
   send_heartbeat: (payload: HeartbeatPayload) => void // 新增
+  sync_subtitle: (data: {
+    content: string
+    name: string
+    type: 'vtt' | 'srt'
+  }) => void
   update_status: (data: { duration: number; fileName: string }) => void
   kick_user: (
     data: { targetUserId: string },
@@ -139,6 +149,11 @@ export interface RoomState {
   videoMeta: VideoMeta
   messages: ChatMessage[]
   lastAction?: SyncAction
+  subtitle?: {
+    content: string
+    name: string
+    type: 'vtt' | 'srt'
+  }
   bannedUsers: {
     ip: string
     username: string

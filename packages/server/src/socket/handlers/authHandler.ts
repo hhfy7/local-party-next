@@ -164,6 +164,11 @@ export const registerAuthHandlers = (
         currentStatus: room.lastAction,
       })
 
+      // 如果房间已有字幕，同步给新用户
+      if (room.subtitle) {
+        socket.emit('subtitle_synced', room.subtitle)
+      }
+
       socket.to(roomId).emit('user_joined', newUser)
 
       console.log(

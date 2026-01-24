@@ -13,6 +13,7 @@ interface VideoStageProps {
   onPick: () => void
   handleVideoLoaded: React.ReactEventHandler<HTMLVideoElement>
   handleDurationChange: (duration: number) => void
+  subtitleUrl?: string | null
 }
 
 export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
@@ -28,6 +29,7 @@ export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
       onPick,
       handleVideoLoaded,
       handleDurationChange,
+      subtitleUrl,
     },
     ref,
   ) => {
@@ -94,6 +96,7 @@ export const VideoStage = forwardRef<HTMLVideoElement, VideoStageProps>(
               className="animate-fade-in h-full w-full overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/10 outline-none md:rounded-2xl"
               onLoadedMetadata={handleVideoLoaded}
               onDurationChange={handleDurationChange}
+              subtitleUrl={subtitleUrl}
             />
           )}
         </div>

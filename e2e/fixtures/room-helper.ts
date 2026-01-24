@@ -67,7 +67,9 @@ export class RoomHelper {
     // 确认已进入房间 (验证侧边栏看到房主用户 - 支持中英文用户名)
     // Mobile 端由于布局不同，可能看不到 Sidebar，所以允许跳过验证
     if (!skipValidation) {
-      await expect(this.page.getByText(/房主用户|HostUser/)).toBeVisible({
+      await expect(
+        this.page.getByText(/房主用户|HostUser/).first(),
+      ).toBeVisible({
         timeout: 10000,
       })
     }

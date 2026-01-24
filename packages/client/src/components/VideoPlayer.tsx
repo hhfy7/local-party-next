@@ -17,10 +17,15 @@ interface VideoPlayerProps extends Omit<
   onDurationChange?: (duration: number) => void
 
   onVideoClick?: () => void
+
+  subtitleUrl?: string | null
 }
 
 export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
-  ({ src, className, onDurationChange, onVideoClick, ...props }, ref) => {
+  (
+    { src, className, onDurationChange, onVideoClick, subtitleUrl, ...props },
+    ref,
+  ) => {
     const internalRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const [isIdle, setIsIdle] = useState(false)
@@ -153,7 +158,17 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           webkit-playsinline="true"
           controlsList="nodownload"
           {...props}
-        />
+        >
+          {subtitleUrl && (
+            <track
+              kind="subtitles"
+              label="中文"
+              src={subtitleUrl}
+              srcLang="zh"
+              default
+            />
+          )}
+        </video>
 
         {/* 透明遮罩层 */}
         <div

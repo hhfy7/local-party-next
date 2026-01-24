@@ -10,6 +10,7 @@ import { useRoomLogic } from '@/hooks/useRoomLogic'
 import { useFileHandler } from '@/hooks/useFileHandler'
 import { useVideoSync } from '@/hooks/useVideoSync'
 import { useP2PManager } from '@/hooks/useP2PManager'
+import { useSubtitle } from '@/hooks/useSubtitle'
 
 // Components
 import { JoinModal } from '@/components/JoinModal'
@@ -83,6 +84,9 @@ export const RoomPage = () => {
     lastActionAt,
   )
 
+  // --- 字幕逻辑 ---
+  const { subtitleUrl, subtitleName, handleUploadSubtitle } = useSubtitle()
+
   // --- 状态上报逻辑 ---
   const handleDurationChange = (duration: number) => {
     if (!socket || !duration) return
@@ -142,6 +146,7 @@ export const RoomPage = () => {
         onPick={pickFile}
         handleVideoLoaded={handleVideoLoaded}
         handleDurationChange={handleDurationChange}
+        subtitleUrl={subtitleUrl}
       />
 
       {/* --- 区域 B: 功能面板 (Content Panel) --- */}
@@ -183,6 +188,8 @@ export const RoomPage = () => {
         tempName={tempName}
         setTempName={setTempName}
         handleUpdateName={handleUpdateName}
+        onUploadSubtitle={handleUploadSubtitle}
+        subtitleName={subtitleName}
       />
 
       {/* Global Hidden Input for iPad/Fallback File Selection */}
