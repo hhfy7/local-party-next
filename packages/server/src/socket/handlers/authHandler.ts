@@ -9,6 +9,7 @@ import { roomStore } from '../../state/roomStore'
 import { generateRoomId } from '../../utils/idGenerator'
 import { hostTransferTimers } from '../../state/transferState'
 import { MAX_USERNAME_LEN } from '../../utils/socketHelpers'
+import { generateToken, verifyToken } from '../../utils/token'
 
 export const registerAuthHandlers = (
   io: Server<ClientToServerEvents, ServerToClientEvents>,
@@ -18,6 +19,12 @@ export const registerAuthHandlers = (
   socket.on(
     'create_room',
     ({ roomName, username, password, videoMeta }, callback) => {
+      // 校验密码格式：必须为4位数字（如果有设置）
+      if (password && !/^\d{4}$/.test(password)) {
+        if (callback) callback({ success: false, error: '密码必须是4位数字' })
+        return
+      }
+
       const safeUsername = username.substring(0, MAX_USERNAME_LEN)
       const roomId = generateRoomId()
 
@@ -56,7 +63,7 @@ export const registerAuthHandlers = (
   // --- 加入房间 ---
   socket.on(
     'join_room',
-    ({ roomId, username, password, videoMeta }, callback) => {
+    ({ roomId, username, password, token, videoMeta }, callback) => {
       const room = roomStore.getRoom(roomId)
 
       if (!room) {
@@ -114,8 +121,24 @@ export const registerAuthHandlers = (
 
       roomStore.cancelCleanup(roomId)
 
-      if (room.password && room.password !== password) {
-        if (callback) callback({ success: false, error: '密码错误' })
+      // --- 密码/Token 验证 ---
+      let isVerified = false
+
+      // 1. 如果有 Token，尝试 Token 验证
+      if (token && verifyToken(token, roomId)) {
+        isVerified = true
+      }
+      // 2. 如果 Token 验证失败（或没有），则尝试密码验证
+      else {
+        // 如果房间没有设置密码，或者密码匹配，则通过
+        if (!room.password || room.password === password) {
+          isVerified = true
+        }
+      }
+
+      if (!isVerified) {
+        if (callback)
+          callback({ success: false, error: '密码错误或链接已失效' })
         return
       }
 
@@ -177,6 +200,19 @@ export const registerAuthHandlers = (
       if (callback) callback({ success: true, roomId })
     },
   )
+
+  // --- 生成邀请 Token ---
+  socket.on('generate_invite_token', ({ roomId }, callback) => {
+    // 只有房内的用户可以生成 Token
+    const room = roomStore.getRoom(roomId)
+    if (!room || !room.users.some(u => u.id === socket.id)) {
+      if (callback) callback({ success: false, error: '无权操作' })
+      return
+    }
+
+    const token = generateToken(roomId)
+    if (callback) callback({ success: true, token })
+  })
 
   // --- 踢人 (Kick User) ---
   socket.on('kick_user', ({ targetUserId }, callback) => {

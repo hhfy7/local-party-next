@@ -84,11 +84,20 @@ export interface ClientToServerEvents {
       roomId: string
       username: string
       password?: string
+      token?: string
       videoMeta: VideoMeta
     },
     callback?: (res: {
       success: boolean
       roomId?: string
+      error?: string
+    }) => void,
+  ) => void
+  generate_invite_token: (
+    data: { roomId: string },
+    callback?: (res: {
+      success: boolean
+      token?: string
       error?: string
     }) => void,
   ) => void

@@ -1,11 +1,18 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppStore } from '@/stores/useAppStore'
 import { getNickname, saveNickname, saveLastRoom } from '@/utils/storage'
 import toast from 'react-hot-toast'
 
 export const useRoomLogic = (roomId?: string) => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // 提取 token
+  const inviteToken = useMemo(
+    () => searchParams.get('token') || undefined,
+    [searchParams],
+  )
+
   const { currentUser, socket, connect, connected } = useAppStore()
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -22,7 +29,7 @@ export const useRoomLogic = (roomId?: string) => {
 
   // 2. 核心加入逻辑 (使用 useCallback 优化)
   const handleJoin = useCallback(
-    (username: string, isAuto = false) => {
+    (username: string, password?: string, isAuto = false) => {
       if (!socket || !roomId) return
 
       console.log(
@@ -34,7 +41,8 @@ export const useRoomLogic = (roomId?: string) => {
         {
           username,
           roomId,
-          password: '',
+          password: password || '',
+          token: inviteToken, // 优先使用 Token
           videoMeta: { duration: 0, fileSize: 0 },
         },
         (res: { success: boolean; error?: string }) => {
@@ -76,7 +84,7 @@ export const useRoomLogic = (roomId?: string) => {
         },
       )
     },
-    [socket, roomId],
+    [socket, roomId, inviteToken],
   )
 
   // 4. 监听用户状态，智能解除 Loading
@@ -124,7 +132,7 @@ export const useRoomLogic = (roomId?: string) => {
         autoJoinAttempted.current = true
         // 状态已经在初始化时设置，这里只需调用 handleJoin
         console.log('[Auto Join] Attempting with:', cachedName)
-        handleJoin(cachedName, true)
+        handleJoin(cachedName, undefined, true)
       }
     }
   }, [socket, connected, roomId, currentUser, handleJoin])
@@ -162,5 +170,6 @@ export const useRoomLogic = (roomId?: string) => {
     handleJoin,
     handleCreate,
     navigate,
+    inviteToken,
   }
 }

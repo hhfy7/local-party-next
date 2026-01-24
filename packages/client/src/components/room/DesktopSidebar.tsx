@@ -5,6 +5,7 @@ import { NameEditor } from './NameEditor'
 import toast from 'react-hot-toast'
 import type { User } from '@local-party/shared/src/types'
 import type { useP2PManager } from '@/hooks/useP2PManager'
+import { useAppStore } from '@/stores/useAppStore'
 
 interface DesktopSidebarProps {
   isSidebarOpen: boolean
@@ -56,6 +57,38 @@ export const DesktopSidebar = ({
   onUploadSubtitle,
   subtitleName,
 }: DesktopSidebarProps) => {
+  const { socket } = useAppStore()
+
+  const handleCopyLink = () => {
+    if (!socket || !roomId) {
+      void copyToClipboard(window.location.href)
+      return
+    }
+
+    const toastId = toast.loading('生成邀请链接...')
+    socket.emit(
+      'generate_invite_token',
+      { roomId },
+      (res: { success: boolean; token?: string; error?: string }) => {
+        toast.dismiss(toastId)
+        if (res.success && res.token) {
+          const url = new URL(window.location.href)
+          url.searchParams.set('token', res.token)
+          void copyToClipboard(url.toString())
+          toast.success('已复制临时邀请链接 (3分钟有效)', { icon: '🔗' })
+        } else {
+          // 降级：复制普通链接
+          void copyToClipboard(window.location.href)
+          if (res.error === '无权操作') {
+            toast.error('您不在房间内')
+          } else {
+            toast.success('已复制房间链接 (无Token)')
+          }
+        }
+      },
+    )
+  }
+
   return (
     <div
       className={`relative z-20 hidden flex-col bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-500 md:flex md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] ${
@@ -75,9 +108,7 @@ export const DesktopSidebar = ({
               </span>
             </h2>
             <button
-              onClick={() => {
-                void copyToClipboard(window.location.href)
-              }}
+              onClick={handleCopyLink}
               className="rounded-xl p-2.5 text-gray-400 shadow-sm ring-1 ring-gray-100 transition-all hover:bg-indigo-50 hover:text-indigo-600 active:scale-95"
             >
               <svg

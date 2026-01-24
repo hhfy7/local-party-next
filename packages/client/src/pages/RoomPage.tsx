@@ -56,7 +56,7 @@ export const RoomPage = () => {
   const isHost = currentUser?.id === hostId
 
   // 房间业务逻辑
-  const { errorMsg, isAutoJoining, handleJoin, handleCreate } =
+  const { errorMsg, isAutoJoining, handleJoin, handleCreate, inviteToken } =
     useRoomLogic(paramRoomId)
 
   // --- File Handler ---
@@ -161,7 +161,13 @@ export const RoomPage = () => {
     return <ErrorScreen message={errorMsg} onBack={() => navigate('/')} />
   if (isAutoJoining) return <LoadingScreen />
   if (!currentUser && paramRoomId)
-    return <JoinModal roomId={paramRoomId} onJoin={name => handleJoin(name)} />
+    return (
+      <JoinModal
+        roomId={paramRoomId}
+        onJoin={(name, password) => handleJoin(name, password)}
+        hasToken={!!inviteToken}
+      />
+    )
 
   const bgColor = videoUrl ? 'bg-gray-900' : 'bg-gray-50'
 

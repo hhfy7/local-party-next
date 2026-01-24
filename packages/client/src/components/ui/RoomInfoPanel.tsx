@@ -3,6 +3,7 @@ import { User } from '@local-party/shared/src/types'
 import { saveNickname } from '@/utils/storage'
 import { copyToClipboard } from '@/utils/clipboard'
 import toast from 'react-hot-toast'
+import { useAppStore } from '@/stores/useAppStore'
 
 interface RoomInfoPanelProps {
   roomId: string
@@ -17,6 +18,7 @@ export const RoomInfoPanel = ({
 }: RoomInfoPanelProps) => {
   const [isEditingName, setIsEditingName] = useState(false)
   const [tempName, setTempName] = useState('')
+  const { socket } = useAppStore()
 
   const handleUpdateName = () => {
     const trimmed = tempName.trim()
@@ -29,7 +31,33 @@ export const RoomInfoPanel = ({
   }
 
   const handleCopyLink = () => {
-    copyToClipboard(window.location.href)
+    if (!socket || !roomId) {
+      void copyToClipboard(window.location.href)
+      return
+    }
+
+    const toastId = toast.loading('生成邀请链接...')
+    socket.emit(
+      'generate_invite_token',
+      { roomId },
+      (res: { success: boolean; token?: string; error?: string }) => {
+        toast.dismiss(toastId)
+        if (res.success && res.token) {
+          const url = new URL(window.location.href)
+          url.searchParams.set('token', res.token)
+          void copyToClipboard(url.toString())
+          toast.success('已复制临时邀请链接 (3分钟有效)', { icon: '🔗' })
+        } else {
+          // 降级：复制普通链接
+          void copyToClipboard(window.location.href)
+          if (res.error === '无权操作') {
+            toast.error('您不在房间内')
+          } else {
+            toast.success('已复制房间链接 (无Token)')
+          }
+        }
+      },
+    )
   }
 
   return (
