@@ -62,6 +62,7 @@ export const DesktopSidebar = ({
   const handleCopyLink = () => {
     if (!socket || !roomId) {
       void copyToClipboard(window.location.href)
+      toast.success('已复制房间链接', { icon: '🔗' })
       return
     }
 
@@ -76,13 +77,16 @@ export const DesktopSidebar = ({
           url.searchParams.set('token', res.token)
           void copyToClipboard(url.toString())
           toast.success('已复制临时邀请链接 (3分钟有效)', { icon: '🔗' })
+        } else if (res.error === '房间无密码') {
+          void copyToClipboard(window.location.href)
+          toast.success('已复制房间链接', { icon: '🔗' })
         } else {
           // 降级：复制普通链接
           void copyToClipboard(window.location.href)
           if (res.error === '无权操作') {
             toast.error('您不在房间内')
           } else {
-            toast.success('已复制房间链接 (无Token)')
+            toast.success('已复制房间链接', { icon: '🔗' })
           }
         }
       },

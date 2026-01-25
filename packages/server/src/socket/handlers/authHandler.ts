@@ -298,6 +298,11 @@ export const registerAuthHandlers = (
       return
     }
 
+    if (!room.password) {
+      if (callback) callback({ success: false, error: '房间无密码' })
+      return
+    }
+
     const token = generateToken(roomId)
     if (callback) callback({ success: true, token })
   })

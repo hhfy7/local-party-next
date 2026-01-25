@@ -4,7 +4,6 @@ export const copyToClipboard = async (text: string) => {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text)
-      toast.success('链接已复制', { icon: '🔗' })
     } else {
       // 降级方案：创建临时 input
       const textArea = document.createElement('textarea')
@@ -18,15 +17,7 @@ export const copyToClipboard = async (text: string) => {
       document.body.appendChild(textArea)
       textArea.focus()
       textArea.select()
-
-      const successful = document.execCommand('copy')
       document.body.removeChild(textArea)
-
-      if (successful) {
-        toast.success('链接已复制', { icon: '🔗' })
-      } else {
-        throw new Error('Fallback copy failed')
-      }
     }
   } catch (err) {
     console.error('Copy failed', err)
