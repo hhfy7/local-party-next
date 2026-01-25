@@ -30,5 +30,21 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': 'warn',
     },
   },
+  // 测试文件专用配置
+  {
+    files: ['**/__tests__/**/*', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      // 测试文件中允许使用any类型，因为Mock和测试数据需要灵活性
+      '@typescript-eslint/no-explicit-any': 'off',
+      // 测试文件中允许未使用的变量（通常是Mock函数）
+      '@typescript-eslint/no-unused-vars': 'off',
+      // 测试文件中允许@ts-expect-error注释
+      '@typescript-eslint/ban-ts-comment': 'off',
+      // 测试文件可以修改全局对象
+      'no-extend-native': 'off',
+      // 测试文件中的console语句通常是调试需要
+      'no-console': 'off',
+    },
+  },
   prettier,
 )
