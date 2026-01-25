@@ -5,6 +5,7 @@ import {
   shouldRenderTransfer,
   getStatusText,
 } from '@/utils/transferStepUtils'
+import { VISIBILITY_TRANSITION_DELAY } from '@/utils/timingConstants'
 
 interface TransferStatusPanelProps {
   p2p: ReturnType<typeof useP2PManager>
@@ -25,7 +26,10 @@ export const TransferStatusPanel = ({ p2p }: TransferStatusPanelProps) => {
     if (shouldRender) {
       setIsVisible(true)
     } else {
-      const timer = setTimeout(() => setIsVisible(false), 300)
+      const timer = setTimeout(
+        () => setIsVisible(false),
+        VISIBILITY_TRANSITION_DELAY,
+      )
       return () => clearTimeout(timer)
     }
   }, [shouldRender])

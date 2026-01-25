@@ -36,8 +36,7 @@ export const useFileHandler = (roomId?: string) => {
     try {
       // 检查浏览器是否支持 showOpenFilePicker
       if ('showOpenFilePicker' in window) {
-        const win = window as unknown as Window & typeof globalThis
-        const [handle] = await win.showOpenFilePicker({
+        const [handle] = await window.showOpenFilePicker({
           types: [
             {
               description: 'Video Files',
@@ -69,7 +68,8 @@ export const useFileHandler = (roomId?: string) => {
         console.warn(
           '[FileHandler] File System Access API not available. Fallback to input.',
         )
-        const win = window as unknown as Window & typeof globalThis
+        // 检查安全上下文（需要 HTTPS 或 localhost）
+        const win = window as Window & typeof globalThis
         if (!win.isSecureContext) {
           console.warn(
             '[FileHandler] Reason: Insecure context (HTTP). Please use HTTPS or localhost.',
@@ -79,7 +79,7 @@ export const useFileHandler = (roomId?: string) => {
       }
     } catch (err) {
       // 用户取消选择，不做处理
-      if ((err as Error).name === 'AbortError') return
+      if (err instanceof Error && err.name === 'AbortError') return
       console.log('File pick cancelled:', err)
     }
   }
@@ -105,7 +105,7 @@ export const useFileHandler = (roomId?: string) => {
       setFileObject(file) // 恢复缓存时也设置 fileObject
       toast.success('视频已恢复', { icon: '💿' })
     } catch (err) {
-      if ((err as Error).name === 'AbortError') return
+      if (err instanceof Error && err.name === 'AbortError') return
       console.error('Video Restore Failed:', err)
       toast.error('无法访问上次的文件，可能已被移动或删除。')
       if (roomId) await clearVideoHandle(roomId)

@@ -10,9 +10,9 @@ import {
   getStepLabelColor,
   getStatusText,
   checkTransferError,
-  formatFileSize,
   shouldRenderTransfer,
 } from '../transferStepUtils'
+import { formatFileSize } from '../fileHelpers'
 
 describe('transferStepUtils', () => {
   // ============================================

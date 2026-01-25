@@ -5,6 +5,13 @@ import toast from 'react-hot-toast'
 import {
   HEARTBEAT_INTERVAL,
   TIME_SYNC_TOLERANCE,
+  REMOTE_ACTION_LOCK_DURATION,
+  PAUSE_DEBOUNCE_DELAY,
+  SEEK_DEBOUNCE_DELAY,
+  SYNC_THRESHOLD_SECONDS,
+  REMOTE_ACTION_UNLOCK_DELAY,
+  SEEK_UNLOCK_DELAY,
+  STATUS_CHECK_INTERVAL,
 } from '@/utils/timingConstants'
 
 export const useVideoSync = (
@@ -36,7 +43,7 @@ export const useVideoSync = (
       setIsManualPaused(isRoomPlaying && isLocalPaused)
     }
 
-    const timer = setInterval(checkStatus, 1000)
+    const timer = setInterval(checkStatus, STATUS_CHECK_INTERVAL)
     videoEl.addEventListener('pause', checkStatus)
     videoEl.addEventListener('play', checkStatus)
 
@@ -99,7 +106,7 @@ export const useVideoSync = (
 
       setTimeout(() => {
         isRemoteAction.current = false
-      }, 1200)
+      }, REMOTE_ACTION_LOCK_DURATION)
     }
 
     // 处理心跳 (自动微调)
@@ -113,8 +120,8 @@ export const useVideoSync = (
       // 如果我也在播放，计算误差
       const diff = Math.abs(video.currentTime - payload.timestamp)
 
-      // 误差 > 2秒 -> 强制拉回
-      if (diff > 2.0) {
+      // 误差 > 阈值 -> 强制拉回
+      if (diff > SYNC_THRESHOLD_SECONDS) {
         console.log(
           `[AutoSync] Diff: ${diff.toFixed(2)}s. Syncing to ${payload.timestamp}`,
         )
@@ -137,7 +144,7 @@ export const useVideoSync = (
 
         setTimeout(() => {
           isRemoteAction.current = false
-        }, 1000)
+        }, REMOTE_ACTION_UNLOCK_DELAY)
       }
     }
 
@@ -263,7 +270,7 @@ export const useVideoSync = (
           sendSync('pause')
         }
         pauseDebounceTimer.current = null
-      }, 200) // 200ms 延迟足以覆盖 pause -> seeking 的时间差
+      }, PAUSE_DEBOUNCE_DELAY)
     }
 
     const onSeekedWithDebounce = () => {
@@ -272,8 +279,8 @@ export const useVideoSync = (
         sendSync('seek')
         setTimeout(() => {
           isSeekingRef.current = false
-        }, 500)
-      }, 600)
+        }, SEEK_UNLOCK_DELAY)
+      }, SEEK_DEBOUNCE_DELAY)
     }
 
     video.addEventListener('seeking', onSeeking)

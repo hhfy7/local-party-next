@@ -5,6 +5,10 @@ import {
   useImperativeHandle,
   useState,
 } from 'react'
+import {
+  STATUS_CLEAR_DELAY,
+  SEEK_DEBOUNCE_DELAY,
+} from '@/utils/timingConstants'
 
 interface VideoPlayerProps extends Omit<
   React.VideoHTMLAttributes<HTMLVideoElement>,
@@ -60,7 +64,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         idleTimer.current = setTimeout(() => {
           if (internalRef.current && !internalRef.current.paused)
             setIsIdle(true)
-        }, 3000)
+        }, STATUS_CLEAR_DELAY)
       }
       const handleMouseMove = () => resetIdleTimer()
       container.addEventListener('mousemove', handleMouseMove)
@@ -75,8 +79,11 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const triggerFeedback = (type: 'play' | 'pause') => {
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current)
       setFeedbackIcon(type)
-      // 动画结束后重置 (动画时长 600ms)
-      feedbackTimer.current = setTimeout(() => setFeedbackIcon(null), 600)
+      // 动画结束后重置
+      feedbackTimer.current = setTimeout(
+        () => setFeedbackIcon(null),
+        SEEK_DEBOUNCE_DELAY,
+      )
     }
 
     const handleOverlayClick = (e: React.MouseEvent | React.TouchEvent) => {

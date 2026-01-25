@@ -112,20 +112,6 @@ export const checkTransferError = (
 }
 
 /**
- * 格式化文件大小显示
- * 自动选择合适的单位（B、KB、MB、GB）
- */
-export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
-}
-
-/**
  * 计算是否应该渲染组件
  * 规则：
  * - 有状态文字或进度未满时：延迟显示
