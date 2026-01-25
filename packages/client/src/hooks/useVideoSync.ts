@@ -29,7 +29,7 @@ export const useVideoSync = (
       // 房主在放，我停了 -> 显示追赶按钮
       const isRoomPlaying = lastAction?.type === 'play'
       const isLocalPaused = videoEl.paused
-      setIsManualPaused(!!(isRoomPlaying && isLocalPaused))
+      setIsManualPaused((isRoomPlaying && isLocalPaused))
     }
 
     const timer = setInterval(checkStatus, 1000)

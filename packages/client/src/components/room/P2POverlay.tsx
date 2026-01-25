@@ -30,16 +30,18 @@ export const P2POverlay = ({ p2p, recipientCount }: P2POverlayProps) => {
         onCancel={p2p.actions.closeShareDialog}
       />
 
-      <TransferProgress
-        progress={p2p.data.progress}
-        isReceiving={p2p.data.isReceiving}
-        statusText={p2p.ui.statusText}
-        currentStep={p2p.ui.p2pStep}
-        stepStatus={p2p.ui.p2pStepStatus}
-        onCancel={() => {
-          p2p.actions.cancelTransfer()
-        }}
-      />
+      <div className="md:hidden">
+        <TransferProgress
+          progress={p2p.data.progress}
+          isReceiving={p2p.data.isReceiving}
+          statusText={p2p.ui.statusText}
+          currentStep={p2p.ui.p2pStep}
+          stepStatus={p2p.ui.p2pStepStatus}
+          onCancel={() => {
+            p2p.actions.cancelTransfer()
+          }}
+        />
+      </div>
     </>
   )
 }

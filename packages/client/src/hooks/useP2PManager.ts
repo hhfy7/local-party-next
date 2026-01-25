@@ -75,7 +75,7 @@ export const useP2PManager = (
         setVideoFile(file)
         setIsP2PVideo(true) // 标记为 P2P 视频
         setP2PStatusText('传输完成')
-        setTimeout(() => setP2PStatusText(''), 3500)
+        setTimeout(() => setP2PStatusText(''), 3000)
 
         // B. 显示导出提示
         toast.success('视频接收完成，已自动播放')
@@ -182,7 +182,7 @@ export const useP2PManager = (
         setP2PStatusText('传输完成')
         setP2PStep(3)
         setP2PStepStatus('completed')
-        setTimeout(() => setP2PStatusText(''), 3500)
+        setTimeout(() => setP2PStatusText(''), 3000)
       }
     }
 

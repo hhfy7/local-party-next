@@ -2,6 +2,7 @@ import { copyToClipboard } from '@/utils/clipboard'
 import { UserItem } from '@/components/chat/UserItem'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { NameEditor } from './NameEditor'
+import { TransferStatusPanel } from '@/components/transfer/TransferStatusPanel'
 import toast from 'react-hot-toast'
 import type { User } from '@local-party/shared/src/types'
 import type { useP2PManager } from '@/hooks/useP2PManager'
@@ -156,6 +157,8 @@ export const DesktopSidebar = ({
             />
           ))}
         </div>
+
+        <TransferStatusPanel p2p={p2p} />
 
         {/* Chat */}
         <ChatPanel

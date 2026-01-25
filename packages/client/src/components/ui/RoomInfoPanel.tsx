@@ -53,7 +53,7 @@ export const RoomInfoPanel = ({
           if (res.error === '无权操作') {
             toast.error('您不在房间内')
           } else {
-            toast.success('已复制房间链接 (无Token)')
+            toast.success('已复制房间链接')
           }
         }
       },

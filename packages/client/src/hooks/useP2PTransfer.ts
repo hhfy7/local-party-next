@@ -278,8 +278,8 @@ export const useP2PTransfer = () => {
             }
             if (socket) socket.emit('transfer_completed', transferId)
 
-            // 延迟清理，给 UI 一点反应时间
-            setTimeout(() => cleanup(transferId), 1000)
+            // 延迟清理，给 UI 一点反应时间 (确保 UI 动画结束前数据还在)
+            setTimeout(() => cleanup(transferId), 4000)
           },
           onError: err => {
             console.error('[P2P Receiver] Error:', err)
@@ -396,7 +396,7 @@ export const useP2PTransfer = () => {
           toast.success('文件发送完成')
           // Sender 不需要发送 completion 事件，避免服务器重复广播消息
           // if (socket) socket.emit('transfer_completed', transferId)
-          setTimeout(() => cleanup(transferId), 1000)
+          setTimeout(() => cleanup(transferId), 4000)
         },
         onError: err => {
           console.error('[P2P Sender] Error:', err)
