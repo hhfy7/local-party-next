@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '@/stores/useAppStore'
 import { useP2PTransfer } from './useP2PTransfer'
 import toast from 'react-hot-toast'
+import { STATUS_CLEAR_DELAY } from '@/utils/timingConstants'
 import type {
   User,
   FileTransferMetadata,
@@ -75,7 +76,7 @@ export const useP2PManager = (
         setVideoFile(file)
         setIsP2PVideo(true) // 标记为 P2P 视频
         setP2PStatusText('传输完成')
-        setTimeout(() => setP2PStatusText(''), 3000)
+        setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
 
         // B. 显示导出提示
         toast.success('视频接收完成，已自动播放')
@@ -95,7 +96,7 @@ export const useP2PManager = (
 
         if (p2pProgress.percentage === 100) {
           setP2PStatusText('传输完成')
-          setTimeout(() => setP2PStatusText(''), 3000)
+          setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
         } else {
           setP2PStatusText(
             isReceiving
@@ -136,7 +137,7 @@ export const useP2PManager = (
       setConfirmModalData(null)
       setP2PStatusText('房主已取消')
       cleanupP2P(transferId)
-      setTimeout(() => setP2PStatusText(''), 3000)
+      setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
       toast('房主取消了分享', { icon: 'ℹ️' })
     }
 
@@ -155,7 +156,7 @@ export const useP2PManager = (
       toast.error('对方拒绝了分享请求')
       setP2PStatusText('对方已拒绝')
       setP2PStepStatus('error')
-      setTimeout(() => setP2PStatusText(''), 3000)
+      setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
       cleanupP2P(transferId)
     }
 
@@ -163,7 +164,7 @@ export const useP2PManager = (
       console.error('[P2P Manager] 传输失败:', reason)
       setP2PStatusText(`传输失败: ${reason}`)
       setP2PStepStatus('error')
-      setTimeout(() => setP2PStatusText(''), 3000)
+      setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
       cleanupP2P(transferId)
     }
 
@@ -182,7 +183,7 @@ export const useP2PManager = (
         setP2PStatusText('传输完成')
         setP2PStep(3)
         setP2PStepStatus('completed')
-        setTimeout(() => setP2PStatusText(''), 3000)
+        setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
       }
     }
 
@@ -296,7 +297,7 @@ export const useP2PManager = (
       } else {
         setP2PStatusText('请求发送失败')
         setP2PStepStatus('error')
-        setTimeout(() => setP2PStatusText(''), 3000)
+        setTimeout(() => setP2PStatusText(''), STATUS_CLEAR_DELAY)
       }
     }
   }

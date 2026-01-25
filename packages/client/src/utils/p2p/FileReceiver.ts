@@ -59,8 +59,9 @@ export class FileReceiver {
         })
       }
     } catch (e) {
-      console.error('Failed to parse metadata:', e)
-      this.onError(new Error('Invalid metadata'))
+      const originalError = e instanceof Error ? e : new Error(String(e))
+      console.error('Failed to parse metadata:', originalError)
+      this.onError(new Error(`Invalid metadata: ${originalError.message}`))
     }
   }
 

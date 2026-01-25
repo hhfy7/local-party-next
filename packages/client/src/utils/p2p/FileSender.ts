@@ -85,7 +85,8 @@ export class FileSender {
     try {
       this.dataChannel.send(e.target.result as ArrayBuffer)
     } catch (err) {
-      this.onError(err as Error)
+      const error = err instanceof Error ? err : new Error(String(err))
+      this.onError(error)
       return
     }
 

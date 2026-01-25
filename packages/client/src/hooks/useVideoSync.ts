@@ -2,6 +2,10 @@ import { RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { SyncAction, HeartbeatPayload } from '@local-party/shared/src/types'
 import { Socket } from 'socket.io-client'
 import toast from 'react-hot-toast'
+import {
+  HEARTBEAT_INTERVAL,
+  TIME_SYNC_TOLERANCE,
+} from '@/utils/timingConstants'
 
 export const useVideoSync = (
   socket: Socket | null,
@@ -64,7 +68,7 @@ export const useVideoSync = (
     }
 
     // 每 5 秒发送一次心跳
-    const timer = setInterval(sendHeartbeat, 5000)
+    const timer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
     return () => clearInterval(timer)
   }, [socket, isHost, videoUrl, videoRef])
 
@@ -80,7 +84,9 @@ export const useVideoSync = (
       isRemoteAction.current = true
 
       // 时间同步
-      if (Math.abs(video.currentTime - action.timestamp) > 0.5) {
+      if (
+        Math.abs(video.currentTime - action.timestamp) > TIME_SYNC_TOLERANCE
+      ) {
         video.currentTime = action.timestamp
       }
 

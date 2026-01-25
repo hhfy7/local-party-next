@@ -14,6 +14,7 @@ import React, { useMemo } from 'react'
 import type { FileTransferProgress } from '@local-party/shared/src/types'
 import { useDraggable } from '@/hooks/useDraggable'
 import { TransferSteps } from '@/components/transfer/StepIndicator'
+import { formatFileSize } from '@/utils/fileHelpers'
 import {
   getStatusText,
   checkTransferError,
@@ -265,12 +266,3 @@ export const TransferProgress = React.memo(
 
 // 添加displayName便于调试
 TransferProgress.displayName = 'TransferProgress'
-
-// 保持原有的工具函数，确保API兼容性
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
-}

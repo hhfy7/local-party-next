@@ -26,6 +26,7 @@ async function createP2PRoom(
   hostContext: BrowserContext
   guestContext: BrowserContext
 }> {
+  const isMobile = viewport && viewport.width < 768
   const hostContext = await browser.newContext({
     viewport: viewport ?? { width: 1920, height: 1080 },
   })
@@ -42,7 +43,8 @@ async function createP2PRoom(
   await host.injectVideoFile(VIDEO_PATH)
 
   console.log('设置：访客正在加入房间...')
-  await guest.joinRoom(url, '访客用户')
+  // 移动端 Sidebar 不可见，跳过验证
+  await guest.joinRoom(url, '访客用户', isMobile)
 
   console.log('操作：房主正在分享视频...')
   await host.shareVideo()
@@ -201,11 +203,37 @@ test.describe('P2P Transfer UI', () => {
 
     console.log('验证：检查移动端 UI 组件显示...')
 
-    // 移动端应该显示 TransferProgress (没有 md:hidden)
-    await expect(guest.page.getByText(/\d+%|进度/)).toBeVisible({
-      timeout: 30000,
-    })
+    // 移动端应该显示 TransferProgress 组件 (没有 md:hidden)
+    // TransferProgress 在步骤 3 时显示百分比，步骤 1-2 显示 "准备中..."
+    // 我们检查 TransferProgress 组件是否渲染（通过步骤指示器判断）
+    const stepsLocator = guest.page.getByText(/对方响应|建立连接|传输文件/)
+    let count = await stepsLocator.count()
+    let attempts = 0
+    const maxAttempts = 30 // 最多等待 30 秒
 
+    // 等待 TransferSteps 组件出现
+    while (count === 0 && attempts < maxAttempts) {
+      await guest.page.waitForTimeout(1000)
+      count = await stepsLocator.count()
+      attempts++
+      console.log(`验证：等待 TransferSteps 组件... (${attempts}s)`)
+    }
+
+    console.log(`验证：找到 ${count} 个步骤元素`)
+
+    // 检查是否至少有一个步骤元素可见
+    let hasVisibleSteps = false
+    for (let i = 0; i < count; i++) {
+      const element = stepsLocator.nth(i)
+      const isVisible = await element.isVisible().catch(() => false)
+      console.log(`验证：步骤元素 ${i} 可见性: ${isVisible}`)
+      if (isVisible) {
+        hasVisibleSteps = true
+        break
+      }
+    }
+
+    expect(hasVisibleSteps).toBe(true)
     console.log('验证：移动端 TransferProgress 已正确显示')
 
     await hostContext.close()

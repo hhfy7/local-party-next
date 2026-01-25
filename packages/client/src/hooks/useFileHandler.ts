@@ -36,8 +36,8 @@ export const useFileHandler = (roomId?: string) => {
     try {
       // 检查浏览器是否支持 showOpenFilePicker
       if ('showOpenFilePicker' in window) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const [handle] = await (window as any).showOpenFilePicker({
+        const win = window as unknown as Window & typeof globalThis
+        const [handle] = await win.showOpenFilePicker({
           types: [
             {
               description: 'Video Files',
@@ -69,7 +69,8 @@ export const useFileHandler = (roomId?: string) => {
         console.warn(
           '[FileHandler] File System Access API not available. Fallback to input.',
         )
-        if (!window.isSecureContext) {
+        const win = window as unknown as Window & typeof globalThis
+        if (!win.isSecureContext) {
           console.warn(
             '[FileHandler] Reason: Insecure context (HTTP). Please use HTTPS or localhost.',
           )
