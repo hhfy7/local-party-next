@@ -17,7 +17,6 @@ export const REMOTE_ACTION_LOCK_DURATION = 1200 as const // ms，远程操作锁
 // P2P 连接相关
 export const ICE_GATHERING_TIMEOUT = 2000 as const // ms
 export const P2P_CONNECTION_TIMEOUT = 15000 as const // ms
-export const OFFER_EXPIRY_TIME = 30000 as const // ms
 
 // 同步阈值
 export const SYNC_THRESHOLD_SECONDS = 2.0 as const // s
@@ -26,6 +25,6 @@ export const TIME_SYNC_TOLERANCE = 0.5 as const // s
 // 状态检查与解锁延迟
 export const STATUS_CHECK_INTERVAL = 1000 as const // ms，状态检查间隔
 export const REMOTE_ACTION_UNLOCK_DELAY = 1000 as const // ms，操作解锁延迟
+export const INITIAL_SYNC_DELAY = 1000 as const // ms，初始同步延迟
 export const SEEK_UNLOCK_DELAY = 500 as const // ms，跳转后解锁延迟
-export const TOAST_DURATION = 2000 as const // ms，Toast显示时长
 export const VISIBILITY_TRANSITION_DELAY = 300 as const // ms，UI显示过渡延迟

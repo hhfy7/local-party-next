@@ -10,6 +10,7 @@ import {
   SEEK_DEBOUNCE_DELAY,
   SYNC_THRESHOLD_SECONDS,
   REMOTE_ACTION_UNLOCK_DELAY,
+  INITIAL_SYNC_DELAY,
   SEEK_UNLOCK_DELAY,
   STATUS_CHECK_INTERVAL,
 } from '@/utils/timingConstants'
@@ -99,7 +100,7 @@ export const useVideoSync = (
 
       // 状态同步
       if (action.type === 'play') {
-        video.play().catch(() => {})
+        video.play().catch(err => console.warn('Play failed:', err))
       } else if (action.type === 'pause') {
         video.pause()
       }
@@ -192,7 +193,7 @@ export const useVideoSync = (
 
     setTimeout(() => {
       isRemoteAction.current = false
-    }, 1000)
+    }, INITIAL_SYNC_DELAY)
   }
 
   // --- 4. 发送指令 (Client -> Server) ---
@@ -226,14 +227,14 @@ export const useVideoSync = (
 
     video.currentTime = targetTime
     if (lastAction.type === 'play') {
-      video.play().catch(() => {})
+      video.play().catch(err => console.warn('Play failed:', err))
     } else {
       video.pause()
     }
 
     setTimeout(() => {
       isRemoteAction.current = false
-    }, 1000)
+    }, INITIAL_SYNC_DELAY)
     toast.success('已同步到房主进度')
   }, [lastAction, lastActionAt, videoRef])
 
