@@ -12,6 +12,81 @@ import {
   CloseIcon,
 } from '@/components/icons'
 
+// 状态类型
+interface StatusInfo {
+  color: string
+  icon: React.ReactNode | null
+  text: string
+}
+
+// 提取状态判定逻辑为独立函数 - 减少嵌套
+const getStatusInfo = (
+  user: User,
+  isHost: boolean,
+  hostDuration: number | undefined,
+  transferStatus: 'pending' | 'completed' | null | undefined,
+): StatusInfo => {
+  // 传输完成状态
+  if (transferStatus === 'completed') {
+    return {
+      color: 'bg-green-500',
+      icon: <CheckIcon className="ml-1 h-3 w-3 text-green-500" />,
+      text: '已接收',
+    }
+  }
+
+  // 传输中状态
+  if (transferStatus === 'pending') {
+    return {
+      color: 'bg-blue-400',
+      icon: <SpinnerIcon className="ml-1 h-3 w-3 animate-spin text-blue-500" />,
+      text: '接收中...',
+    }
+  }
+
+  // 无视频时长
+  if (!user.videoDuration) {
+    return {
+      color: 'bg-gray-300',
+      icon: null,
+      text: '等待选择',
+    }
+  }
+
+  // 我有时长且对方是普通成员（未选择视频）
+  if (!hostDuration && !isHost) {
+    return {
+      color: 'bg-emerald-400',
+      icon: null,
+      text: '已就绪',
+    }
+  }
+
+  // 有 host 时长，比较差异
+  if (hostDuration) {
+    const diff = Math.abs(user.videoDuration - hostDuration)
+    if (diff < 2) {
+      return {
+        color: 'bg-emerald-400',
+        icon: null,
+        text: '已就绪',
+      }
+    }
+    return {
+      color: 'bg-amber-400',
+      icon: <WarningIcon className="ml-1 h-3 w-3 text-amber-500" />,
+      text: '时长不符',
+    }
+  }
+
+  // 我是房主且我有时长（我是基准）
+  return {
+    color: 'bg-emerald-400',
+    icon: null,
+    text: '基准',
+  }
+}
+
 // Helper
 const formatDuration = (seconds: number) => {
   const h = Math.floor(seconds / 3600)
@@ -73,42 +148,8 @@ export const UserItem = ({
     })
   }
 
-  // 状态判定逻辑
-  let statusColor = 'bg-gray-300'
-  let statusIcon = null
-  let statusText = '等待选择'
-
-  // P2P 传输状态覆盖
-  if (transferStatus === 'pending') {
-    statusColor = 'bg-blue-400'
-    statusText = '接收中...'
-    statusIcon = (
-      <SpinnerIcon className="ml-1 h-3 w-3 animate-spin text-blue-500" />
-    )
-  } else if (transferStatus === 'completed') {
-    statusColor = 'bg-green-500'
-    statusText = '已接收'
-    statusIcon = <CheckIcon className="ml-1 h-3 w-3 text-green-500" />
-  } else if (user.videoDuration) {
-    if (!hostDuration && !isHost) {
-      statusColor = 'bg-emerald-400'
-      statusText = '已就绪'
-    } else if (hostDuration) {
-      const diff = Math.abs(user.videoDuration - hostDuration)
-      if (diff < 2) {
-        statusColor = 'bg-emerald-400'
-        statusText = '已就绪'
-      } else {
-        statusColor = 'bg-amber-400'
-        statusText = '时长不符'
-        statusIcon = <WarningIcon className="ml-1 h-3 w-3 text-amber-500" />
-      }
-    } else {
-      // 我是房主且我有时长
-      statusColor = 'bg-emerald-400'
-      statusText = '基准'
-    }
-  }
+  // 使用提取的状态判定函数
+  const statusInfo = getStatusInfo(user, isHost, hostDuration, transferStatus)
 
   if (variant === 'vertical') {
     return (
@@ -116,7 +157,7 @@ export const UserItem = ({
         <div className="flex items-center gap-3">
           {/* 头像/状态灯 */}
           <div
-            className={`flex h-10 w-10 items-center justify-center rounded-xl font-black text-white ${statusColor} shadow-md`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl font-black text-white ${statusInfo.color} shadow-md`}
           >
             {user.username[0].toUpperCase()}
           </div>
@@ -135,7 +176,7 @@ export const UserItem = ({
               )}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span>{statusText}</span>
+              <span>{statusInfo.text}</span>
               {user.videoDuration && (
                 <>
                   <span>•</span>
@@ -183,7 +224,7 @@ export const UserItem = ({
         onMouseLeave={() => setIsHovered(false)}
       >
         <div
-          className={`h-2.5 w-2.5 rounded-full ${statusColor} ${isMe ? 'animate-pulse' : ''} shadow-sm`}
+          className={`h-2.5 w-2.5 rounded-full ${statusInfo.color} ${isMe ? 'animate-pulse' : ''} shadow-sm`}
         ></div>
 
         <span className="max-w-[80px] truncate text-xs font-black text-gray-700">
@@ -196,7 +237,7 @@ export const UserItem = ({
           </span>
         )}
 
-        {statusIcon}
+        {statusInfo.icon}
 
         {amIHost && !isMe && (
           <button
@@ -230,7 +271,7 @@ export const UserItem = ({
                 ? formatDuration(user.videoDuration)
                 : '--:--'}
             </div>
-            {statusText === '时长不符' && (
+            {statusInfo.text === '时长不符' && (
               <div className="mt-1 text-[9px] font-bold text-amber-400">
                 ⚠️ 版本不一致
               </div>
