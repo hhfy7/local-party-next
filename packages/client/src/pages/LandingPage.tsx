@@ -10,71 +10,14 @@ import {
   getClientId,
 } from '@/utils/storage'
 import toast from 'react-hot-toast'
-
-// 图标组件
-const IconCreate = () => (
-  <svg
-    className="h-12 w-12 text-indigo-500"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={1.5}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
-  </svg>
-)
-
-const IconJoin = () => (
-  <svg
-    className="h-12 w-12 text-emerald-500"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={1.5}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-    />
-  </svg>
-)
-
-const IconBack = () => (
-  <svg
-    className="h-5 w-5"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M10 19l-7-7m0 0l7-7m-7 7h18"
-    />
-  </svg>
-)
-
-const IconRejoin = () => (
-  <svg
-    className="h-8 w-8 text-sky-600"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-    />
-  </svg>
-)
+import {
+  CreateIcon,
+  JoinIcon,
+  BackIcon,
+  RejoinIcon,
+  EyeOffIcon,
+  EyeIcon,
+} from '@/components/icons'
 
 export const LandingPage = () => {
   const navigate = useNavigate()
@@ -194,7 +137,7 @@ export const LandingPage = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-600 group-hover:bg-sky-200 group-hover:text-sky-700">
-                      <IconRejoin />
+                      <RejoinIcon />
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-bold tracking-wider text-sky-600/70 uppercase">
@@ -236,7 +179,7 @@ export const LandingPage = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50 transition-transform duration-300 group-hover:scale-110 md:h-24 md:w-24">
                   <div className="scale-75 md:scale-100">
-                    <IconCreate />
+                    <CreateIcon className="h-12 w-12 text-indigo-500" />
                   </div>
                 </div>
                 <h3 className="relative mt-4 text-lg font-bold text-gray-900 md:mt-8 md:text-2xl">
@@ -257,7 +200,7 @@ export const LandingPage = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-white opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 transition-transform duration-300 group-hover:scale-110 md:h-24 md:w-24">
                   <div className="scale-75 md:scale-100">
-                    <IconJoin />
+                    <JoinIcon className="h-12 w-12 text-emerald-500" />
                   </div>
                 </div>
                 <h3 className="relative mt-4 text-lg font-bold text-gray-900 md:mt-8 md:text-2xl">
@@ -282,7 +225,7 @@ export const LandingPage = () => {
                 onClick={() => setView('menu')}
                 className="rounded-full bg-white p-2 text-gray-400 shadow-sm ring-1 ring-gray-100 transition hover:bg-gray-100 hover:text-gray-900"
               >
-                <IconBack />
+                <BackIcon />
               </button>
               <h2 className="text-2xl font-bold text-gray-900">创建新房间</h2>
             </div>
@@ -349,41 +292,7 @@ export const LandingPage = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute top-1/2 right-4 -translate-y-1/2 p-2 text-gray-400 transition-colors hover:text-gray-600"
                     >
-                      {showPassword ? (
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
                 </div>
@@ -410,7 +319,7 @@ export const LandingPage = () => {
                 onClick={() => setView('menu')}
                 className="rounded-full bg-white p-2 text-gray-400 shadow-sm ring-1 ring-gray-100 transition hover:bg-gray-100 hover:text-gray-900"
               >
-                <IconBack />
+                <BackIcon />
               </button>
               <h2 className="text-2xl font-bold text-gray-900">加入房间</h2>
             </div>
@@ -477,41 +386,7 @@ export const LandingPage = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute top-1/2 right-4 -translate-y-1/2 p-2 text-gray-400 transition-colors hover:text-gray-600"
                     >
-                      {showPassword ? (
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
                 </div>
