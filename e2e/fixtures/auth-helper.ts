@@ -151,5 +151,4 @@ export class AuthHelper extends RoomHelper {
       await expect(this.page.getByText('上传字幕 (CC)')).toBeHidden()
     }
   }
-
 }

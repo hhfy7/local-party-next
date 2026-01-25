@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-
 // @ts-expect-error - global assignment for test environment
 ;(global as any).CSS = {
   supports: vi.fn(() => false),
