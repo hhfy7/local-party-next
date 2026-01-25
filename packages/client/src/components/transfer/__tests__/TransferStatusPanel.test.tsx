@@ -7,33 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TransferStatusPanel } from '../TransferStatusPanel'
 
-// Mock transferStepUtils with proper implementation
-vi.mock('@/utils/transferStepUtils', () => ({
-  checkTransferError: vi.fn((stepStatus, statusText) => {
-    if (stepStatus === 'error') return true
-    const errorKeywords = ['失败', '拒绝', '错误', 'cancelled', 'failed']
-    if (!statusText) return false
-    return errorKeywords.some(keyword =>
-      statusText.toLowerCase().includes(keyword),
-    )
-  }),
-  shouldRenderTransfer: vi.fn((hasStatusText, progress, isError) => {
-    if (hasStatusText || (progress && progress.percentage < 100)) {
-      return { shouldRender: true, delay: 0 }
-    }
-    if (progress?.percentage === 100 || isError) {
-      return { shouldRender: true, delay: 3000 }
-    }
-    return { shouldRender: false, delay: 0 }
-  }),
-  getStatusText: vi.fn((isReceiving, step, customText) => {
-    if (customText) return customText
-    if (isReceiving) return '📥 正在接收...'
-    if (step === 1) return '等待响应...'
-    return '📤 正在发送...'
-  }),
-}))
-
 // Mock useP2PManager hook
 const mockCancelTransfer = vi.fn()
 
@@ -188,8 +161,8 @@ describe('TransferStatusPanel', () => {
       vi.runAllTimers()
 
       // 直接查找红色指示器
-      const indicator = document.querySelector('.bg-red-500')
-      expect(indicator).toBeInTheDocument()
+      const indicator = screen.getByTestId('status-indicator')
+      expect(indicator).toHaveClass('bg-red-500')
     })
 
     it('错误状态时进度条应该为红色', () => {
@@ -201,8 +174,8 @@ describe('TransferStatusPanel', () => {
       render(<TransferStatusPanel p2p={mockP2P} />)
       vi.runAllTimers()
 
-      const progressBar = document.querySelector('.bg-red-500')
-      expect(progressBar).toBeInTheDocument()
+      const progressBar = screen.getByTestId('progress-bar')
+      expect(progressBar).toHaveClass('bg-red-500')
     })
   })
 
@@ -317,10 +290,7 @@ describe('TransferStatusPanel', () => {
       render(<TransferStatusPanel p2p={mockP2P} />)
       vi.runAllTimers()
 
-      const shimmerElement = document.querySelector(
-        '.animate-\\[shimmer_1s_infinite\\]',
-      )
-      expect(shimmerElement).toBeInTheDocument()
+      expect(screen.getByTestId('shimmer-animation')).toBeInTheDocument()
     })
 
     it('步骤3不应该显示 shimmer 动画', () => {
@@ -332,10 +302,7 @@ describe('TransferStatusPanel', () => {
       render(<TransferStatusPanel p2p={mockP2P} />)
       vi.runAllTimers()
 
-      const shimmerElement = document.querySelector(
-        '.animate-\\[shimmer_1s_infinite\\]',
-      )
-      expect(shimmerElement).not.toBeInTheDocument()
+      expect(screen.queryByTestId('shimmer-animation')).not.toBeInTheDocument()
     })
   })
 })

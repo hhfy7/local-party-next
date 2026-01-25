@@ -42,6 +42,7 @@ export const TransferStatusPanel = ({ p2p }: TransferStatusPanelProps) => {
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div
+            data-testid="status-indicator"
             className={`h-2 w-2 rounded-full ${isError ? 'bg-red-500' : 'animate-pulse bg-indigo-500'}`}
           />
           <span className="text-xs font-bold text-gray-700">
@@ -57,9 +58,13 @@ export const TransferStatusPanel = ({ p2p }: TransferStatusPanelProps) => {
 
       <div className="relative mb-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
         {p2pStep < 3 && !isError ? (
-          <div className="absolute top-0 left-0 h-full w-1/3 animate-[shimmer_1s_infinite] rounded-full bg-indigo-300" />
+          <div
+            data-testid="shimmer-animation"
+            className="absolute top-0 left-0 h-full w-1/3 animate-[shimmer_1s_infinite] rounded-full bg-indigo-300"
+          />
         ) : (
           <div
+            data-testid="progress-bar"
             className={`absolute top-0 left-0 h-full rounded-full transition-all duration-300 ease-out ${
               isError ? 'bg-red-500' : 'bg-indigo-500'
             }`}

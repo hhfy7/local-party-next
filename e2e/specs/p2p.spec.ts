@@ -1,4 +1,9 @@
-import { test, expect } from '@playwright/test'
+import {
+  test,
+  expect,
+  type Browser,
+  type BrowserContext,
+} from '@playwright/test'
 import { RoomHelper } from '../fixtures/room-helper'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -8,12 +13,50 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const VIDEO_PATH = path.join(__dirname, '../test-assets/small-video.mp4')
 
+// ============================================
+// P2P 测试辅助函数 (减少重复代码)
+// ============================================
+async function createP2PRoom(
+  browser: Browser,
+  viewport?: { width: number; height: number },
+): Promise<{
+  host: RoomHelper
+  guest: RoomHelper
+  url: string
+  hostContext: BrowserContext
+  guestContext: BrowserContext
+}> {
+  const hostContext = await browser.newContext({
+    viewport: viewport ?? { width: 1920, height: 1080 },
+  })
+  const guestContext = await browser.newContext({
+    viewport: viewport ?? { width: 1920, height: 1080 },
+  })
+  const hostPage = await hostContext.newPage()
+  const guestPage = await guestContext.newPage()
+  const host = new RoomHelper(hostPage)
+  const guest = new RoomHelper(guestPage)
+
+  console.log('设置：正在创建房间...')
+  const { url } = await host.createRoom('房主用户')
+  await host.injectVideoFile(VIDEO_PATH)
+
+  console.log('设置：访客正在加入房间...')
+  await guest.joinRoom(url, '访客用户')
+
+  console.log('操作：房主正在分享视频...')
+  await host.shareVideo()
+
+  console.log('操作：访客正在接收传输...')
+  await guest.acceptTransfer()
+
+  return { host, guest, url, hostContext, guestContext }
+}
+
 test.describe('P2P File Transfer', () => {
   test('TC-02: Host shares file, Guest accepts and plays', async ({
     browser,
   }) => {
-    // 1. 设置超时时间，因为 P2P 传输可能较慢
-    // 增加到 2 分钟，确保有足够时间完成握手和传输
     test.setTimeout(60000)
 
     const hostContext = await browser.newContext()
@@ -23,7 +66,7 @@ test.describe('P2P File Transfer', () => {
     const host = new RoomHelper(hostPage)
     const guest = new RoomHelper(guestPage)
 
-    // --- 步骤1: 房间准备 ---
+    // 步骤1: 房间准备
     console.log('设置：正在创建房间...')
     const { url } = await host.createRoom('房主用户')
     await host.injectVideoFile(VIDEO_PATH)
@@ -31,43 +74,35 @@ test.describe('P2P File Transfer', () => {
     console.log('设置：访客正在加入房间...')
     await guest.joinRoom(url, '访客用户')
 
-    // --- 步骤2: 触发分享 ---
+    // 步骤2: 触发分享
     console.log('操作：房主正在分享视频...')
     await host.shareVideo()
 
-    // --- 步骤3: 访客接受传输 ---
+    // 步骤3: 访客接受传输
     console.log('操作：访客正在接收传输...')
     await guest.acceptTransfer()
 
-    // [新增] 验证进度条出现，证明握手成功
-    // 这一步能帮我们区分是 "无法建立连接" 还是 "传输慢"
-    // 验证 UI 上有传输相关文本（进度百分比或传输状态）
+    // 验证进度条出现，证明握手成功
     try {
-      // 尝试查找包含百分号的文本（如 "50%"）
       await expect(guestPage.getByText(/\d+%/)).toBeVisible({ timeout: 5000 })
       console.log('进度：传输已开始，检测到进度百分比...')
     } catch {
-      // 如果找不到百分比，尝试查找传输状态文本
       await expect(
         guestPage.getByText(/传输|transfer|接收|receiving/i),
       ).toBeVisible({ timeout: 5000 })
       console.log('进度：传输已开始，检测到传输状态...')
     }
 
-    // --- 步骤4: 验证传输完成 ---
+    // 步骤4: 验证传输完成
     console.log('验证：正在等待播放...')
 
-    // 验证访客视频元素 src 变成 blob:
-    // 增加超时时间到 60s，以防文件稍大
     const guestVideo = guestPage.locator('video')
     await expect(guestVideo).toHaveAttribute('src', /^blob:/, {
       timeout: 60000,
     })
     console.log('进度：传输已完成，blob URL 已就绪。')
 
-    // 验证 Guest 自动开始播放 (Host 默认可能是暂停的，但传输完通常会同步状态)
-    // 如果 Host 是暂停的，Guest 也会暂停。
-    // 我们让 Host 播放一下，确保 Guest 能跟上
+    // 验证 Guest 自动开始播放
     await hostPage.locator('video').evaluate((v: HTMLVideoElement) => v.play())
 
     await expect(guestVideo).toHaveJSProperty('paused', false)
@@ -89,35 +124,17 @@ test.describe('P2P Transfer UI', () => {
   }) => {
     test.setTimeout(120000)
 
-    const hostContext = await browser.newContext()
-    const guestContext = await browser.newContext()
-    const hostPage = await hostContext.newPage()
-    const guestPage = await guestContext.newPage()
-    const host = new RoomHelper(hostPage)
-    const guest = new RoomHelper(guestPage)
-
-    console.log('设置：正在创建房间...')
-    const { url } = await host.createRoom('房主用户')
-    await host.injectVideoFile(VIDEO_PATH)
-
-    console.log('设置：访客正在加入房间...')
-    await guest.joinRoom(url, '访客用户')
-
-    console.log('操作：房主正在分享视频...')
-    await host.shareVideo()
-
-    console.log('操作：访客正在接收传输...')
-    await guest.acceptTransfer()
+    const { guest } = await createP2PRoom(browser)
 
     console.log('验证：检查 TransferStatusPanel 是否显示...')
 
     // 等待传输开始后检查 UI
-    await expect(guestPage.getByText(/接收文件|发送文件/)).toBeVisible({
+    await expect(guest.page.getByText(/接收文件|发送文件/)).toBeVisible({
       timeout: 30000,
     })
 
-    // 检查 TransferStatusPanel 存在（通过包含状态文字判断）
-    await expect(guestPage.getByText(/\d+%|Error/)).toBeVisible({
+    // 检查 TransferStatusPanel 存在
+    await expect(guest.page.getByText(/\d+%|Error/)).toBeVisible({
       timeout: 10000,
     })
 
@@ -129,36 +146,12 @@ test.describe('P2P Transfer UI', () => {
   }) => {
     test.setTimeout(120000)
 
-    const hostContext = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
-    })
-    const guestContext = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
-    })
-    const hostPage = await hostContext.newPage()
-    const guestPage = await guestContext.newPage()
-    const host = new RoomHelper(hostPage)
-    const guest = new RoomHelper(guestPage)
-
-    console.log('设置：正在创建房间...')
-    const { url } = await host.createRoom('房主用户')
-    await host.injectVideoFile(VIDEO_PATH)
-
-    console.log('设置：访客正在加入房间...')
-    await guest.joinRoom(url, '访客用户')
-
-    console.log('操作：房主正在分享视频...')
-    await host.shareVideo()
-
-    console.log('操作：访客正在接收传输...')
-    await guest.acceptTransfer()
+    const { guest } = await createP2PRoom(browser)
 
     console.log('验证：检查桌面端 TransferProgress 是否隐藏...')
 
-    // 在桌面端视口下，TransferProgress 应该被 md:hidden 隐藏
-    // 我们通过检查 TransferStatusPanel 是否可见来间接验证
-    // 因为 TransferStatusPanel 是桌面端显示的组件
-    await expect(guestPage.getByText(/接收文件|发送文件/)).toBeVisible({
+    // 在桌面端视口下，TransferStatusPanel 应该可见（TransferProgress 被 md:hidden 隐藏）
+    await expect(guest.page.getByText(/接收文件|发送文件/)).toBeVisible({
       timeout: 30000,
     })
 
@@ -170,30 +163,12 @@ test.describe('P2P Transfer UI', () => {
   }) => {
     test.setTimeout(180000)
 
-    const hostContext = await browser.newContext()
-    const guestContext = await browser.newContext()
-    const hostPage = await hostContext.newPage()
-    const guestPage = await guestContext.newPage()
-    const host = new RoomHelper(hostPage)
-    const guest = new RoomHelper(guestPage)
-
-    console.log('设置：正在创建房间...')
-    const { url } = await host.createRoom('房主用户')
-    await host.injectVideoFile(VIDEO_PATH)
-
-    console.log('设置：访客正在加入房间...')
-    await guest.joinRoom(url, '访客用户')
-
-    console.log('操作：房主正在分享视频...')
-    await host.shareVideo()
-
-    console.log('操作：访客正在接收传输...')
-    await guest.acceptTransfer()
+    const { guest, hostContext, guestContext } = await createP2PRoom(browser)
 
     console.log('验证：等待传输完成...')
 
-    // 等待视频元素 src 变成 blob URL（传输完成）
-    const guestVideo = guestPage.locator('video')
+    // 等待视频元素 src 变成 blob URL
+    const guestVideo = guest.page.locator('video')
     await expect(guestVideo).toHaveAttribute('src', /^blob:/, {
       timeout: 120000,
     })
@@ -201,15 +176,39 @@ test.describe('P2P Transfer UI', () => {
     console.log('验证：传输已完成，检查状态面板...')
 
     // 传输完成后立即检查状态面板应该仍然可见
-    // 因为有 3 秒延迟隐藏逻辑（3000ms timeout）
-    const statusPanel = guestPage.getByText(/接收文件|发送文件/)
+    const statusPanel = guest.page.getByText(/接收文件|发送文件/)
     await expect(statusPanel).toBeVisible({ timeout: 5000 })
 
-    // 检查状态面板显示完成状态（可能有100%或"完成"文字）
     // 由于面板可能在3秒后开始隐藏，使用更宽松的验证方式
     await expect(statusPanel).toBeVisible({ timeout: 1000 })
 
     console.log('验证：传输完成状态面板正确显示')
-    console.log('验证：传输完成状态检查完毕')
+
+    await hostContext.close()
+    await guestContext.close()
+  })
+
+  test('TC-P2P-UI-04: 移动端应该显示 TransferProgress 而非 TransferStatusPanel', async ({
+    browser,
+  }) => {
+    test.setTimeout(120000)
+
+    // 移动端视口 (iPhone SE 尺寸)
+    const { guest, hostContext, guestContext } = await createP2PRoom(browser, {
+      width: 375,
+      height: 667,
+    })
+
+    console.log('验证：检查移动端 UI 组件显示...')
+
+    // 移动端应该显示 TransferProgress (没有 md:hidden)
+    await expect(guest.page.getByText(/\d+%|进度/)).toBeVisible({
+      timeout: 30000,
+    })
+
+    console.log('验证：移动端 TransferProgress 已正确显示')
+
+    await hostContext.close()
+    await guestContext.close()
   })
 })

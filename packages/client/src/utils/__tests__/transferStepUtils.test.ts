@@ -270,6 +270,10 @@ describe('transferStepUtils', () => {
       expect(checkTransferError('processing')).toBe(false)
     })
 
+    it('statusText为null时应返回false', () => {
+      expect(checkTransferError('processing', null as any)).toBe(false)
+    })
+
     it('statusText为空字符串时应返回false', () => {
       expect(checkTransferError('processing', '')).toBe(false)
     })
@@ -393,6 +397,44 @@ describe('transferStepUtils', () => {
       const result = shouldRenderTransfer(false, null, true)
       expect(result.shouldRender).toBe(true)
       expect(result.delay).toBe(3000)
+    })
+
+    it('边界情况：进度为undefined时应不渲染', () => {
+      const result = shouldRenderTransfer(false, undefined as any, false)
+      expect(result.shouldRender).toBe(false)
+      expect(result.delay).toBe(0)
+    })
+
+    it('边界情况：进度为undefined但有状态文字时应立即渲染', () => {
+      const result = shouldRenderTransfer(true, undefined as any, false)
+      expect(result.shouldRender).toBe(true)
+      expect(result.delay).toBe(0)
+    })
+
+    it('边界情况：进度为undefined且是错误状态时应延迟隐藏', () => {
+      const result = shouldRenderTransfer(false, undefined as any, true)
+      expect(result.shouldRender).toBe(true)
+      expect(result.delay).toBe(3000)
+    })
+
+    it('边界情况：进度percentage为undefined时应不渲染', () => {
+      const result = shouldRenderTransfer(
+        false,
+        { percentage: undefined as any },
+        false,
+      )
+      expect(result.shouldRender).toBe(false)
+      expect(result.delay).toBe(0)
+    })
+
+    it('边界情况：进度percentage为undefined但有状态文字时应立即渲染', () => {
+      const result = shouldRenderTransfer(
+        true,
+        { percentage: undefined as any },
+        false,
+      )
+      expect(result.shouldRender).toBe(true)
+      expect(result.delay).toBe(0)
     })
   })
 })
